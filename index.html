@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BraceFit Configurator</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-labelledby="app-title">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">BraceFit Studio</p>
+            <h1 id="app-title">Custom hand brace configurator</h1>
+          </div>
+          <div class="metric-strip" aria-label="Calculated fit summary">
+            <div>
+              <span id="fitSize">Medium</span>
+              <small>fit</small>
+            </div>
+            <div>
+              <span id="materialUse">142 cm2</span>
+              <small>shell area</small>
+            </div>
+            <div>
+              <span id="printTime">3.4 hr</span>
+              <small>print time</small>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-grid">
+          <aside class="control-panel" aria-label="Brace settings">
+            <div class="panel-section">
+              <h2>Measurements</h2>
+              <label>
+                Wrist circumference
+                <input id="wrist" type="number" min="10" max="28" step="0.1" value="17.2">
+                <span>cm</span>
+              </label>
+              <label>
+                Palm width
+                <input id="palm" type="number" min="5" max="13" step="0.1" value="8.6">
+                <span>cm</span>
+              </label>
+              <label>
+                Hand length
+                <input id="length" type="number" min="12" max="25" step="0.1" value="18.4">
+                <span>cm</span>
+              </label>
+              <label>
+                Thumb offset
+                <input id="thumb" type="number" min="2" max="9" step="0.1" value="5.2">
+                <span>cm</span>
+              </label>
+            </div>
+
+            <div class="panel-section">
+              <h2>Configuration</h2>
+              <div class="field">
+                <span>Hand</span>
+                <div class="segmented" role="group" aria-label="Hand side">
+                  <button class="active" type="button" data-hand="left">Left</button>
+                  <button type="button" data-hand="right">Right</button>
+                </div>
+              </div>
+              <label>
+                Support level
+                <select id="support">
+                  <option value="flex">Flexible</option>
+                  <option value="balanced" selected>Balanced</option>
+                  <option value="rigid">Rigid</option>
+                </select>
+              </label>
+              <label>
+                Ventilation
+                <input id="vents" type="range" min="0" max="5" step="1" value="3">
+                <span id="ventLabel">3</span>
+              </label>
+              <label class="check">
+                <input id="thumbRelief" type="checkbox" checked>
+                Thumb relief cutout
+              </label>
+            </div>
+          </aside>
+
+          <section class="model-stage" aria-label="Brace model preview">
+            <div class="canvas-toolbar">
+              <button class="icon-button active" type="button" data-view="top" aria-label="Top view" title="Top view">T</button>
+              <button class="icon-button" type="button" data-view="side" aria-label="Side view" title="Side view">S</button>
+              <button class="icon-button" type="button" id="reset" aria-label="Reset" title="Reset">R</button>
+            </div>
+            <svg id="braceModel" viewBox="0 0 760 560" role="img" aria-labelledby="modelTitle modelDesc">
+              <title id="modelTitle">Parametric brace model</title>
+              <desc id="modelDesc">A generated hand brace shell with thumb opening, straps, vents, and sizing markers.</desc>
+              <defs>
+                <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+                  <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#dfe6ea" stroke-width="1"/>
+                </pattern>
+                <linearGradient id="braceGradient" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0" stop-color="#f9fbfb"/>
+                  <stop offset="1" stop-color="#b9d1cf"/>
+                </linearGradient>
+              </defs>
+              <rect width="760" height="560" fill="url(#grid)"/>
+              <g id="modelLayer"></g>
+            </svg>
+          </section>
+
+          <aside class="spec-panel" aria-label="Generated specifications">
+            <h2>Generated spec</h2>
+            <dl>
+              <div>
+                <dt>Shell length</dt>
+                <dd id="shellLength">21.2 cm</dd>
+              </div>
+              <div>
+                <dt>Wrist opening</dt>
+                <dd id="wristOpening">18.0 cm</dd>
+              </div>
+              <div>
+                <dt>Palm opening</dt>
+                <dd id="palmOpening">9.5 cm</dd>
+              </div>
+              <div>
+                <dt>Thickness</dt>
+                <dd id="thickness">3.0 mm</dd>
+              </div>
+              <div>
+                <dt>Straps</dt>
+                <dd id="straps">3</dd>
+              </div>
+            </dl>
+            <div class="notes">
+              <h3>Fabrication notes</h3>
+              <p id="notes">Balanced support uses a reinforced wrist channel and moderate vent spacing.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
