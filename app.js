@@ -136,19 +136,24 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function angleDistance(a, b) {
+  const tau = Math.PI * 2;
+  return Math.abs((((a - b + Math.PI) % tau) + tau) % tau - Math.PI);
+}
+
 function readState() {
-  state.wristCirc = clamp(Number(inputs.wristCirc.value) || defaults.wristCirc, 120, 320);
-  state.metacarpalHeight = clamp(Number(inputs.metacarpalHeight.value) || defaults.metacarpalHeight, 15, 80);
-  state.metacarpalWidth = clamp(Number(inputs.metacarpalWidth.value) || defaults.metacarpalWidth, 55, 150);
-  state.thumbWidth = clamp(Number(inputs.thumbWidth.value) || defaults.thumbWidth, 18, 100);
-  state.thumbHeight = clamp(Number(inputs.thumbHeight.value) || defaults.thumbHeight, 25, 100);
-  state.wristHeight = clamp(Number(inputs.wristHeight.value) || defaults.wristHeight, 30, 90);
-  state.wristWidth = clamp(Number(inputs.wristWidth.value) || defaults.wristWidth, 40, 100);
-  state.foreWristLength = clamp(Number(inputs.foreWristLength.value) || defaults.foreWristLength, 45, 180);
-  state.wristMetaLength = clamp(Number(inputs.wristMetaLength.value) || defaults.wristMetaLength, 40, 140);
-  state.thick = clamp(Number(inputs.thick.value) || defaults.thick, 1.5, 8);
-  state.metaToThumbLength = clamp(Number(inputs.metaToThumbLength.value) || defaults.metaToThumbLength, 15, 80);
-  state.velcroThickness = clamp(Number(inputs.velcroThickness.value) || defaults.velcroThickness, 2, 10);
+  state.wristCirc = clamp(Number(inputs.wristCirc.value) || defaults.wristCirc, 130, 260);
+  state.metacarpalHeight = clamp(Number(inputs.metacarpalHeight.value) || defaults.metacarpalHeight, 18, 50);
+  state.metacarpalWidth = clamp(Number(inputs.metacarpalWidth.value) || defaults.metacarpalWidth, 65, 120);
+  state.thumbWidth = clamp(Number(inputs.thumbWidth.value) || defaults.thumbWidth, 20, 100);
+  state.thumbHeight = clamp(Number(inputs.thumbHeight.value) || defaults.thumbHeight, 35, 100);
+  state.wristHeight = clamp(Number(inputs.wristHeight.value) || defaults.wristHeight, 30, 75);
+  state.wristWidth = clamp(Number(inputs.wristWidth.value) || defaults.wristWidth, 40, 90);
+  state.foreWristLength = clamp(Number(inputs.foreWristLength.value) || defaults.foreWristLength, 70, 160);
+  state.wristMetaLength = clamp(Number(inputs.wristMetaLength.value) || defaults.wristMetaLength, 55, 110);
+  state.thick = clamp(Number(inputs.thick.value) || defaults.thick, 1.5, 6);
+  state.metaToThumbLength = clamp(Number(inputs.metaToThumbLength.value) || defaults.metaToThumbLength, 20, 65);
+  state.velcroThickness = clamp(Number(inputs.velcroThickness.value) || defaults.velcroThickness, 2, 8);
   state.support = defaults.support;
   state.vents = defaults.vents;
   state.thumbRelief = true;
@@ -185,8 +190,11 @@ function smoothstep(edge0, edge1, value) {
 function sectionAt(yMm, insetMm = 0) {
   const wristT = smoothstep(-state.foreWristLength, 0, yMm);
   const metaT = smoothstep(0, state.wristMetaLength, yMm);
-  const bottomWidth = Math.max(42, state.wristWidth * 0.9);
-  const bottomHeight = Math.max(32, state.wristHeight * 1.08);
+  const forearmRatio = clamp(state.wristHeight / Math.max(state.wristWidth, 1), 0.55, 1.1);
+  const forearmWidth = state.wristCirc / (2.2 + 1.65 * forearmRatio);
+  const forearmHeight = forearmWidth * forearmRatio;
+  const bottomWidth = Math.max(42, forearmWidth);
+  const bottomHeight = Math.max(32, forearmHeight);
   const wristWidth = state.wristWidth;
   const wristHeight = state.wristHeight;
   const metaWidth = state.metacarpalWidth;
@@ -217,42 +225,98 @@ function thumbReliefProfile() {
   const side = state.hand === "left" ? -1 : 1;
   const sideSplit = side * (Math.PI / 2 - splitHalf);
   const thumbY = state.wristMetaLength - state.metaToThumbLength;
-  const topY = clamp(thumbY + state.thumbHeight * 1.06, -state.foreWristLength + 16, state.wristMetaLength - 2);
-  const bottomY = clamp(thumbY - state.thumbHeight * 0.36, -state.foreWristLength + 14, state.wristMetaLength - 24);
+  const halfHeight = state.thumbHeight * 0.5;
+  const topClearance = Math.max(24, state.velcroThickness * 2 + 16);
+  const topY = clamp(thumbY + halfHeight, -state.foreWristLength + 16, state.wristMetaLength - topClearance);
+  const bottomY = clamp(thumbY - halfHeight, -state.foreWristLength + 14, state.wristMetaLength - 24);
   const palmarStart = -side * clamp((state.thumbWidth / state.metacarpalWidth - 0.48) * 0.46, 0.08, 0.24);
 
   return { side, sideSplit, topY, bottomY, palmarStart };
 }
 
-function isCutout(theta, yMm) {
-  const topSlotY = state.wristMetaLength - 18;
-  const lowerSlotY = -state.foreWristLength * 0.58;
-  const velcroTheta = 2.22;
+function isThumbReliefCutout(theta, yMm) {
+  if (!state.thumbRelief) {
+    return false;
+  }
+
+  const { sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
+  const t = clamp((topY - yMm) / Math.max(topY - bottomY, 1), 0, 1);
+  const curveEase = smoothstep(0.0, 0.86, t);
+  const curveTheta = sideSplit + (palmarStart - sideSplit) * curveEase;
+  const onThumbSide = theta >= Math.min(sideSplit, curveTheta) && theta <= Math.max(sideSplit, curveTheta);
+  const inVerticalSpan = yMm <= topY && yMm >= bottomY;
+
+  return inVerticalSpan && onThumbSide;
+}
+
+function isStrapSlot(theta, yMm) {
+  const { side, topY } = thumbReliefProfile();
+  const yMax = state.wristMetaLength;
+  const topYRegular = state.wristMetaLength - 18;
+  const middleY = -state.foreWristLength * 0.38;
+  const lowerY = -state.foreWristLength * 0.78;
+  const thumbTheta = side * 0.72;
+  const nonThumbTheta = -side * 0.72;
+  const palmarThetas = [-0.72, 0.72];
+  const nonPalmarThetas = [-2.48, 2.48];
+  const allSlotThetas = [...palmarThetas, ...nonPalmarThetas];
   const slitThetaHalf = 0.055 + state.velcroThickness * 0.004;
-  const slitHalfHeight = 15 + state.velcroThickness * 1.2;
+  const regularHalfHeight = 13 + state.velcroThickness * 0.8;
+  const regularTopHalfHeight = regularHalfHeight * 0.72;
+  const thumbTopClearance = 5;
+  const thumbTopAvailable = yMax - topY - thumbTopClearance;
+  const thumbTopHalfHeight = clamp((thumbTopAvailable - 4) * 0.5, 5, regularTopHalfHeight);
+  const thumbSideTopY = topY + thumbTopClearance + thumbTopHalfHeight;
 
-  const inSlot = (slotTheta, slotY, heightScale = 1) =>
-    Math.abs(Math.abs(theta) - slotTheta) < slitThetaHalf &&
-    Math.abs(yMm - slotY) < slitHalfHeight * heightScale;
+  const inSlot = (slotTheta, slotY, halfHeight) =>
+    angleDistance(theta, slotTheta) < slitThetaHalf &&
+    Math.abs(yMm - slotY) < halfHeight;
 
-  if (inSlot(velcroTheta, topSlotY, 0.72) || inSlot(2.48, lowerSlotY, 1.55) || inSlot(2.48, lowerSlotY - 52, 1.18)) {
+  if (thumbTopAvailable >= 14 && inSlot(thumbTheta, thumbSideTopY, thumbTopHalfHeight)) {
     return true;
   }
 
-  if (state.thumbRelief) {
-    const { side, sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
-    const t = clamp((topY - yMm) / Math.max(topY - bottomY, 1), 0, 1);
-    const curveEase = smoothstep(0.0, 0.86, t);
-    const curveTheta = sideSplit + (palmarStart - sideSplit) * curveEase;
-    const onThumbSide = side > 0 ? theta >= curveTheta : theta <= curveTheta;
-    const inVerticalSpan = yMm <= topY && yMm >= bottomY;
+  if (inSlot(nonThumbTheta, topYRegular, regularTopHalfHeight)) {
+    return true;
+  }
 
-    if (inVerticalSpan && onThumbSide) {
+  for (const slotTheta of nonPalmarThetas) {
+    if (inSlot(slotTheta, topYRegular, regularTopHalfHeight)) {
       return true;
     }
   }
 
+  for (const slotTheta of allSlotThetas) {
+    for (const slotY of [middleY, lowerY]) {
+      if (inSlot(slotTheta, slotY, regularHalfHeight)) return true;
+    }
+  }
+
   return false;
+}
+
+function isCutout(theta, yMm) {
+  if (isStrapSlot(theta, yMm)) {
+    return true;
+  }
+
+  if (isThumbReliefCutout(theta, yMm)) {
+    return true;
+  }
+
+  return false;
+}
+
+function isThumbSplitClearance(theta, yMm) {
+  if (!state.thumbRelief) {
+    return false;
+  }
+
+  const { side, sideSplit, topY, bottomY } = thumbReliefProfile();
+  const thetaTolerance = 0.055;
+  return Math.abs(theta - sideSplit) < thetaTolerance &&
+    yMm <= topY + state.thick * 1.5 &&
+    yMm >= bottomY - state.thick * 1.5;
 }
 
 function splitThetaHalf() {
@@ -320,11 +384,34 @@ function buildBraceMesh(thetaMin, thetaMax) {
       const rightOpen = isCutout(thetaMid, yMid) && !isCutout(thetaB + 0.03, yMid);
       if (leftOpen || rightOpen) {
         const itEdge = leftOpen ? it : it + 1;
+        const thetaEdge = thetaMin + (itEdge / thetaSegments) * (thetaMax - thetaMin);
+        if (isThumbReliefCutout(thetaMid, yMid) && angleDistance(thetaEdge, thumbReliefProfile().sideSplit) < 0.08) {
+          continue;
+        }
         const o1 = outerIndex[iy][itEdge];
         const o2 = outerIndex[iy + 1][itEdge];
         const i1 = innerIndex[iy][itEdge];
         const i2 = innerIndex[iy + 1][itEdge];
         indices.push(o1, i1, o2, i1, i2, o2);
+      }
+
+      if (isCutout(thetaMid, yMid)) {
+        const bottomOpen = !isCutout(thetaMid, yA - 0.03);
+        const topOpen = !isCutout(thetaMid, yB + 0.03);
+        const addCutoutYCap = (iyEdge) => {
+          const o1 = outerIndex[iyEdge][it];
+          const o2 = outerIndex[iyEdge][it + 1];
+          const i1 = innerIndex[iyEdge][it];
+          const i2 = innerIndex[iyEdge][it + 1];
+          indices.push(o1, o2, i1, o2, i2, i1);
+        };
+
+        if (bottomOpen) {
+          addCutoutYCap(iy);
+        }
+        if (topOpen) {
+          addCutoutYCap(iy + 1);
+        }
       }
     }
   }
@@ -348,6 +435,9 @@ function buildBraceMesh(thetaMin, thetaMax) {
     const addSeam = (it) => {
       const theta = thetaMin + (it / thetaSegments) * (thetaMax - thetaMin);
       if (isCutout(theta, yMid)) {
+        return;
+      }
+      if (isThumbSplitClearance(theta, yMid)) {
         return;
       }
       const a = outerIndex[iy][it];
@@ -547,7 +637,6 @@ function buildModel(values) {
     modelGroup.add(shell);
   });
 
-  addHandGhost();
 }
 
 function formatHours(hours) {
@@ -662,7 +751,9 @@ document.querySelectorAll("[data-camera]").forEach((button) => {
   });
 });
 
-document.querySelector("#reset").addEventListener("click", () => {
+const resetButton = document.querySelector("#reset");
+if (resetButton) {
+  resetButton.addEventListener("click", () => {
   Object.assign(state, defaults);
   Object.entries(inputs).filter(([, input]) => Boolean(input)).forEach(([key, input]) => {
     if (input.type === "checkbox") {
@@ -675,7 +766,8 @@ document.querySelector("#reset").addEventListener("click", () => {
   document.querySelectorAll("[data-camera]").forEach((item) => item.classList.toggle("active", item.dataset.camera === defaults.camera));
   render();
   setCamera(defaults.camera);
-});
+  });
+}
 
 if (output.exportStl) {
   output.exportStl.addEventListener("click", exportStl);

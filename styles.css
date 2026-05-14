@@ -113,7 +113,7 @@ h3 {
 .content-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(250px, 310px) minmax(360px, 1fr) minmax(240px, 300px);
+  grid-template-columns: minmax(340px, 390px) minmax(360px, 1fr) minmax(240px, 300px);
   gap: 16px;
   min-height: 0;
 }
@@ -124,7 +124,12 @@ h3 {
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
   padding: 18px;
-  overflow: auto;
+  overflow: visible;
+}
+
+.control-panel {
+  position: relative;
+  z-index: 6;
 }
 
 .panel-section + .panel-section {
@@ -136,12 +141,74 @@ h3 {
 label,
 .field {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 92px auto;
+  gap: 8px 10px;
   align-items: center;
   min-height: 44px;
   color: #273936;
   font-size: 0.92rem;
+}
+
+.label-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.info-bubble {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--field);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: help;
+}
+
+.tooltip {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  z-index: 20;
+  width: 250px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(-4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.info-bubble:hover .tooltip,
+.info-bubble:focus .tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.unit {
+  color: var(--muted);
+}
+
+.range-text {
+  grid-column: 2 / 4;
+  justify-self: start;
+  margin-top: -6px;
+  color: var(--muted);
+  font-size: 0.74rem;
 }
 
 label + label,
