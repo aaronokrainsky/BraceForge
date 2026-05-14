@@ -24,6 +24,13 @@ const defaults = {
 };
 
 const state = { ...defaults };
+const derivedCache = {
+  key: "",
+  thumbRelief: null,
+  strapSlots: null
+};
+let renderTimer = null;
+let lastRenderKey = "";
 
 const inputs = {
   wristCirc: document.querySelector("#wristCirc"),
@@ -136,13 +143,40 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function geometryStateKey() {
+  return [
+    state.wristCirc,
+    state.metacarpalHeight,
+    state.metacarpalWidth,
+    state.thumbWidth,
+    state.thumbHeight,
+    state.wristHeight,
+    state.wristWidth,
+    state.foreWristLength,
+    state.wristMetaLength,
+    state.thick,
+    state.metaToThumbLength,
+    state.velcroThickness,
+    state.hand
+  ].join("|");
+}
+
+function resetDerivedCache() {
+  const key = geometryStateKey();
+  if (derivedCache.key !== key) {
+    derivedCache.key = key;
+    derivedCache.thumbRelief = null;
+    derivedCache.strapSlots = null;
+  }
+}
+
 function angleDistance(a, b) {
   const tau = Math.PI * 2;
   return Math.abs((((a - b + Math.PI) % tau) + tau) % tau - Math.PI);
 }
 
 function readState() {
-  state.wristCirc = clamp(Number(inputs.wristCirc.value) || defaults.wristCirc, 130, 260);
+  state.wristCirc = clamp(Number(inputs.wristCirc?.value) || defaults.wristCirc, 130, 260);
   state.metacarpalHeight = clamp(Number(inputs.metacarpalHeight.value) || defaults.metacarpalHeight, 18, 50);
   state.metacarpalWidth = clamp(Number(inputs.metacarpalWidth.value) || defaults.metacarpalWidth, 65, 120);
   state.thumbWidth = clamp(Number(inputs.thumbWidth.value) || defaults.thumbWidth, 20, 100);
@@ -151,7 +185,7 @@ function readState() {
   state.wristWidth = clamp(Number(inputs.wristWidth.value) || defaults.wristWidth, 40, 90);
   state.foreWristLength = clamp(Number(inputs.foreWristLength.value) || defaults.foreWristLength, 70, 160);
   state.wristMetaLength = clamp(Number(inputs.wristMetaLength.value) || defaults.wristMetaLength, 55, 110);
-  state.thick = clamp(Number(inputs.thick.value) || defaults.thick, 1.5, 6);
+  state.thick = defaults.thick;
   state.metaToThumbLength = clamp(Number(inputs.metaToThumbLength.value) || defaults.metaToThumbLength, 20, 65);
   state.velcroThickness = clamp(Number(inputs.velcroThickness.value) || defaults.velcroThickness, 2, 8);
   state.support = defaults.support;
@@ -166,9 +200,8 @@ function spec() {
   const area = Math.round((shellLength * (state.wristCirc + topOpening) * 0.5 * 0.82) / 100);
   const straps = clamp(3 + profile.strapBias, 3, 4);
   const printTime = ((area * state.thick) / 78).toFixed(1);
-  const fitSize = state.wristCirc < 180 ? "Small" : state.wristCirc > 250 ? "Large" : "Medium";
 
-  return { profile, shellLength, topOpening, area, straps, printTime, fitSize };
+  return { profile, shellLength, topOpening, area, straps, printTime };
 }
 
 function clearModel() {
@@ -220,7 +253,71 @@ function pointOnBrace(theta, yMm, insetMm = 0) {
   );
 }
 
+function filletInsetAtDistance(distanceMm, radiusMm) {
+  if (distanceMm >= radiusMm || radiusMm <= 0) {
+    return 0;
+  }
+
+  const x = radiusMm - Math.max(0, distanceMm);
+  return radiusMm - Math.sqrt(Math.max(0, radiusMm * radiusMm - x * x));
+}
+
+function thumbReliefCurveTheta(yMm) {
+  const { sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
+  const t = clamp((topY - yMm) / Math.max(topY - bottomY, 1), 0, 1);
+  const curveEase = smoothstep(0.0, 0.86, t);
+  return sideSplit + (palmarStart - sideSplit) * curveEase;
+}
+
+function distanceToThumbReliefEdge(theta, yMm, averageRadiusMm) {
+  if (!state.thumbRelief) {
+    return Infinity;
+  }
+
+  const { sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
+  const radiusMm = state.thick * 0.5;
+  const distances = [];
+
+  if (yMm >= bottomY - radiusMm && yMm <= topY + radiusMm) {
+    const clampedY = clamp(yMm, bottomY, topY);
+    const curveTheta = thumbReliefCurveTheta(clampedY);
+    distances.push(Math.hypot((theta - curveTheta) * averageRadiusMm, yMm - clampedY));
+  }
+
+  const minTheta = Math.min(sideSplit, palmarStart);
+  const maxTheta = Math.max(sideSplit, palmarStart);
+  const lowerTheta = clamp(theta, minTheta, maxTheta);
+  distances.push(Math.hypot((theta - lowerTheta) * averageRadiusMm, yMm - bottomY));
+
+  return Math.min(...distances);
+}
+
+function exposedEdgeInset(theta, yMm, thetaMin, thetaMax, yMin, yMax) {
+  const radiusMm = state.thick * 0.5;
+  const section = sectionAt(yMm, 0);
+  const averageRadiusMm = ((section.rx + section.rz) / 2) / SCALE;
+  const edgeDistances = [
+    yMm - yMin,
+    yMax - yMm,
+    (theta - thetaMin) * averageRadiusMm,
+    (thetaMax - theta) * averageRadiusMm
+  ];
+
+  return Math.min(
+    radiusMm,
+    Math.max(
+      ...edgeDistances.map((distance) => filletInsetAtDistance(distance, radiusMm)),
+      filletInsetAtDistance(distanceToThumbReliefEdge(theta, yMm, averageRadiusMm), radiusMm)
+    )
+  );
+}
+
 function thumbReliefProfile() {
+  resetDerivedCache();
+  if (derivedCache.thumbRelief) {
+    return derivedCache.thumbRelief;
+  }
+
   const splitHalf = splitThetaHalf();
   const side = state.hand === "left" ? -1 : 1;
   const sideSplit = side * (Math.PI / 2 - splitHalf);
@@ -231,7 +328,8 @@ function thumbReliefProfile() {
   const bottomY = clamp(thumbY - halfHeight, -state.foreWristLength + 14, state.wristMetaLength - 24);
   const palmarStart = -side * clamp((state.thumbWidth / state.metacarpalWidth - 0.48) * 0.46, 0.08, 0.24);
 
-  return { side, sideSplit, topY, bottomY, palmarStart };
+  derivedCache.thumbRelief = { side, sideSplit, topY, bottomY, palmarStart };
+  return derivedCache.thumbRelief;
 }
 
 function isThumbReliefCutout(theta, yMm) {
@@ -239,17 +337,20 @@ function isThumbReliefCutout(theta, yMm) {
     return false;
   }
 
-  const { sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
-  const t = clamp((topY - yMm) / Math.max(topY - bottomY, 1), 0, 1);
-  const curveEase = smoothstep(0.0, 0.86, t);
-  const curveTheta = sideSplit + (palmarStart - sideSplit) * curveEase;
+  const { sideSplit, topY, bottomY } = thumbReliefProfile();
+  const curveTheta = thumbReliefCurveTheta(yMm);
   const onThumbSide = theta >= Math.min(sideSplit, curveTheta) && theta <= Math.max(sideSplit, curveTheta);
   const inVerticalSpan = yMm <= topY && yMm >= bottomY;
 
   return inVerticalSpan && onThumbSide;
 }
 
-function isStrapSlot(theta, yMm) {
+function strapSlotSpecs() {
+  resetDerivedCache();
+  if (derivedCache.strapSlots) {
+    return derivedCache.strapSlots;
+  }
+
   const { side, topY } = thumbReliefProfile();
   const yMax = state.wristMetaLength;
   const topYRegular = state.wristMetaLength - 18;
@@ -267,32 +368,25 @@ function isStrapSlot(theta, yMm) {
   const thumbTopAvailable = yMax - topY - thumbTopClearance;
   const thumbTopHalfHeight = clamp((thumbTopAvailable - 4) * 0.5, 5, regularTopHalfHeight);
   const thumbSideTopY = topY + thumbTopClearance + thumbTopHalfHeight;
+  const specs = [
+    { theta: nonThumbTheta, y: topYRegular, halfTheta: slitThetaHalf, halfHeight: regularTopHalfHeight },
+    ...nonPalmarThetas.map((theta) => ({ theta, y: topYRegular, halfTheta: slitThetaHalf, halfHeight: regularTopHalfHeight })),
+    ...allSlotThetas.flatMap((theta) => [middleY, lowerY].map((y) => ({ theta, y, halfTheta: slitThetaHalf, halfHeight: regularHalfHeight })))
+  ];
 
-  const inSlot = (slotTheta, slotY, halfHeight) =>
-    angleDistance(theta, slotTheta) < slitThetaHalf &&
-    Math.abs(yMm - slotY) < halfHeight;
-
-  if (thumbTopAvailable >= 14 && inSlot(thumbTheta, thumbSideTopY, thumbTopHalfHeight)) {
-    return true;
+  if (thumbTopAvailable >= 14) {
+    specs.push({ theta: thumbTheta, y: thumbSideTopY, halfTheta: slitThetaHalf, halfHeight: thumbTopHalfHeight });
   }
 
-  if (inSlot(nonThumbTheta, topYRegular, regularTopHalfHeight)) {
-    return true;
-  }
+  derivedCache.strapSlots = specs;
+  return derivedCache.strapSlots;
+}
 
-  for (const slotTheta of nonPalmarThetas) {
-    if (inSlot(slotTheta, topYRegular, regularTopHalfHeight)) {
-      return true;
-    }
-  }
-
-  for (const slotTheta of allSlotThetas) {
-    for (const slotY of [middleY, lowerY]) {
-      if (inSlot(slotTheta, slotY, regularHalfHeight)) return true;
-    }
-  }
-
-  return false;
+function isStrapSlot(theta, yMm) {
+  return strapSlotSpecs().some((slot) =>
+    angleDistance(theta, slot.theta) < slot.halfTheta &&
+    Math.abs(yMm - slot.y) < slot.halfHeight
+  );
 }
 
 function isCutout(theta, yMm) {
@@ -326,8 +420,8 @@ function splitThetaHalf() {
 }
 
 function buildBraceMesh(thetaMin, thetaMax) {
-  const thetaSegments = 120;
-  const ySegments = 220;
+  const thetaSegments = 240;
+  const ySegments = 420;
   const yMin = -state.foreWristLength;
   const yMax = state.wristMetaLength;
   const positions = [];
@@ -343,8 +437,10 @@ function buildBraceMesh(thetaMin, thetaMax) {
 
     for (let it = 0; it <= thetaSegments; it += 1) {
       const theta = thetaMin + (it / thetaSegments) * (thetaMax - thetaMin);
-      const outer = pointOnBrace(theta, yMm, 0);
-      const inner = pointOnBrace(theta, yMm, state.thick);
+      const outerInset = exposedEdgeInset(theta, yMm, thetaMin, thetaMax, yMin, yMax);
+      const innerInset = state.thick - outerInset;
+      const outer = pointOnBrace(theta, yMm, outerInset);
+      const inner = pointOnBrace(theta, yMm, innerInset);
       const normal = new THREE.Vector3(Math.sin(theta), 0, Math.cos(theta)).normalize();
 
       outerIndex[iy][it] = positions.length / 3;
@@ -357,6 +453,33 @@ function buildBraceMesh(thetaMin, thetaMax) {
     }
   }
 
+  const cutoutGrid = [];
+  const strapGrid = [];
+  const thumbGrid = [];
+  for (let iy = 0; iy < ySegments; iy += 1) {
+    const yA = yMin + (iy / ySegments) * (yMax - yMin);
+    const yB = yMin + ((iy + 1) / ySegments) * (yMax - yMin);
+    const yMid = (yA + yB) / 2;
+    const cutoutRow = new Uint8Array(thetaSegments);
+    const strapRow = new Uint8Array(thetaSegments);
+    const thumbRow = new Uint8Array(thetaSegments);
+
+    for (let it = 0; it < thetaSegments; it += 1) {
+      const thetaA = thetaMin + (it / thetaSegments) * (thetaMax - thetaMin);
+      const thetaB = thetaMin + ((it + 1) / thetaSegments) * (thetaMax - thetaMin);
+      const thetaMid = (thetaA + thetaB) / 2;
+      const strap = isStrapSlot(thetaMid, yMid);
+      const thumb = isThumbReliefCutout(thetaMid, yMid);
+      strapRow[it] = strap ? 1 : 0;
+      thumbRow[it] = thumb ? 1 : 0;
+      cutoutRow[it] = strap || thumb ? 1 : 0;
+    }
+
+    cutoutGrid[iy] = cutoutRow;
+    strapGrid[iy] = strapRow;
+    thumbGrid[iy] = thumbRow;
+  }
+
   for (let iy = 0; iy < ySegments; iy += 1) {
     const yA = yMin + (iy / ySegments) * (yMax - yMin);
     const yB = yMin + ((iy + 1) / ySegments) * (yMax - yMin);
@@ -366,8 +489,11 @@ function buildBraceMesh(thetaMin, thetaMax) {
       const thetaA = thetaMin + (it / thetaSegments) * (thetaMax - thetaMin);
       const thetaB = thetaMin + ((it + 1) / thetaSegments) * (thetaMax - thetaMin);
       const thetaMid = (thetaA + thetaB) / 2;
+      const isCurrentCutout = cutoutGrid[iy][it] === 1;
+      const isCurrentStrap = strapGrid[iy][it] === 1;
+      const isCurrentThumb = thumbGrid[iy][it] === 1;
 
-      if (!isCutout(thetaMid, yMid)) {
+      if (!isCurrentCutout) {
         const a = outerIndex[iy][it];
         const b = outerIndex[iy][it + 1];
         const c = outerIndex[iy + 1][it + 1];
@@ -380,12 +506,12 @@ function buildBraceMesh(thetaMin, thetaMax) {
         indices.push(ai, bi, di, bi, ci, di);
       }
 
-      const leftOpen = isCutout(thetaMid, yMid) && !isCutout(thetaA - 0.03, yMid);
-      const rightOpen = isCutout(thetaMid, yMid) && !isCutout(thetaB + 0.03, yMid);
+      const leftOpen = isCurrentCutout && (it === 0 || cutoutGrid[iy][it - 1] === 0);
+      const rightOpen = isCurrentCutout && (it === thetaSegments - 1 || cutoutGrid[iy][it + 1] === 0);
       if (leftOpen || rightOpen) {
         const itEdge = leftOpen ? it : it + 1;
         const thetaEdge = thetaMin + (itEdge / thetaSegments) * (thetaMax - thetaMin);
-        if (isThumbReliefCutout(thetaMid, yMid) && angleDistance(thetaEdge, thumbReliefProfile().sideSplit) < 0.08) {
+        if (isCurrentThumb && angleDistance(thetaEdge, thumbReliefProfile().sideSplit) < 0.08) {
           continue;
         }
         const o1 = outerIndex[iy][itEdge];
@@ -395,9 +521,9 @@ function buildBraceMesh(thetaMin, thetaMax) {
         indices.push(o1, i1, o2, i1, i2, o2);
       }
 
-      if (isCutout(thetaMid, yMid)) {
-        const bottomOpen = !isCutout(thetaMid, yA - 0.03);
-        const topOpen = !isCutout(thetaMid, yB + 0.03);
+      if (isCurrentCutout) {
+        const bottomOpen = iy === 0 || cutoutGrid[iy - 1][it] === 0;
+        const topOpen = iy === ySegments - 1 || cutoutGrid[iy + 1][it] === 0;
         const addCutoutYCap = (iyEdge) => {
           const o1 = outerIndex[iyEdge][it];
           const o2 = outerIndex[iyEdge][it + 1];
@@ -434,7 +560,8 @@ function buildBraceMesh(thetaMin, thetaMax) {
     const yMid = (yA + yB) / 2;
     const addSeam = (it) => {
       const theta = thetaMin + (it / thetaSegments) * (thetaMax - thetaMin);
-      if (isCutout(theta, yMid)) {
+      const cellIndex = it === 0 ? 0 : thetaSegments - 1;
+      if (cutoutGrid[iy][cellIndex] === 1) {
         return;
       }
       if (isThumbSplitClearance(theta, yMid)) {
@@ -539,82 +666,6 @@ function estimatePrint() {
   };
 }
 
-function addRims(values) {
-  const splitHalf = splitThetaHalf();
-  const rimRanges = [
-    [-Math.PI / 2 + splitHalf, Math.PI / 2 - splitHalf],
-    [Math.PI / 2 + splitHalf, Math.PI * 1.5 - splitHalf]
-  ];
-
-  const addTube = (points, radius = 0.09) => {
-    const curve = new THREE.CatmullRomCurve3(points);
-    const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(16, points.length * 2), radius, 10, false), materials.rim);
-    tube.castShadow = true;
-    tube.receiveShadow = true;
-    modelGroup.add(tube);
-  };
-
-  rimRanges.forEach(([start, end]) => {
-    const topCurve = [];
-    const bottomCurve = [];
-    for (let i = 0; i <= 50; i += 1) {
-      const theta = start + (i / 50) * (end - start);
-      topCurve.push(pointOnBrace(theta, state.wristMetaLength, -0.8));
-      bottomCurve.push(pointOnBrace(theta, -state.foreWristLength, -0.8));
-    }
-    addTube(topCurve);
-    addTube(bottomCurve);
-  });
-
-  const yStart = -state.foreWristLength + 10;
-  const yEnd = state.wristMetaLength - 10;
-  [-Math.PI / 2 - splitHalf, -Math.PI / 2 + splitHalf, Math.PI / 2 - splitHalf, Math.PI / 2 + splitHalf].forEach((theta) => {
-    const { side, sideSplit, topY, bottomY } = thumbReliefProfile();
-    const isThumbSideSplit = state.thumbRelief && side * theta > 0 && Math.abs(theta - sideSplit) < 0.02;
-    const points = [];
-    const flushSegment = () => {
-      if (points.length > 1) {
-        addTube([...points], 0.055);
-      }
-      points.length = 0;
-    };
-
-    for (let i = 0; i <= 80; i += 1) {
-      const y = yStart + (i / 80) * (yEnd - yStart);
-      if (isThumbSideSplit && y >= bottomY) {
-        flushSegment();
-        continue;
-      }
-      points.push(pointOnBrace(theta, y, -0.7));
-    }
-    flushSegment();
-  });
-
-  if (state.thumbRelief) {
-    const { sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
-    const cutoutEdge = [];
-    const lowerEdge = [];
-
-    for (let i = 0; i <= 48; i += 1) {
-      const y = topY + ((bottomY - topY) * i) / 48;
-      const t = clamp((topY - y) / Math.max(topY - bottomY, 1), 0, 1);
-      const curveEase = smoothstep(0.0, 0.86, t);
-      const theta = sideSplit + (palmarStart - sideSplit) * curveEase;
-      cutoutEdge.push(pointOnBrace(theta, y, -0.95));
-    }
-
-    for (let i = 0; i <= 28; i += 1) {
-      const t = i / 28;
-      const theta = palmarStart + (sideSplit - palmarStart) * t;
-      lowerEdge.push(pointOnBrace(theta, bottomY, -0.95));
-    }
-
-    addTube(cutoutEdge, 0.065);
-    addTube(lowerEdge, 0.055);
-  }
-
-}
-
 function addHandGhost() {
   const wristY = -state.foreWristLength * SCALE * 0.25;
   const palmY = state.wristMetaLength * SCALE * 0.48;
@@ -636,7 +687,6 @@ function buildModel(values) {
     shell.receiveShadow = true;
     modelGroup.add(shell);
   });
-
 }
 
 function formatHours(hours) {
@@ -676,22 +726,32 @@ async function exportStl() {
   URL.revokeObjectURL(url);
 }
 
-function renderSpecs(values) {
-  output.printTime.textContent = `${values.printTime} hr`;
+function renderSpecs(values, printEstimate) {
+  output.printTime.textContent = formatHours(printEstimate.hours);
   if (output.printVolume) {
-    output.printVolume.textContent = "--";
+    output.printVolume.textContent = `${(printEstimate.volumeMm3 / 1000).toFixed(1)} cm3`;
   }
   if (output.filamentUse) {
-    output.filamentUse.textContent = "--";
+    output.filamentUse.textContent = `${printEstimate.grams.toFixed(0)} g`;
   }
   if (output.ventLabel) {
     output.ventLabel.textContent = state.vents;
   }
-  output.shellLength.textContent = `${values.shellLength.toFixed(0)} mm`;
-  output.wristOpening.textContent = `${state.wristCirc.toFixed(0)} mm`;
-  output.palmOpening.textContent = `${values.topOpening.toFixed(0)} mm`;
-  output.thickness.textContent = `${state.thick.toFixed(1)} mm`;
-  output.straps.textContent = values.straps;
+  if (output.shellLength) {
+    output.shellLength.textContent = `${values.shellLength.toFixed(0)} mm`;
+  }
+  if (output.wristOpening) {
+    output.wristOpening.textContent = `${state.wristCirc.toFixed(0)} mm`;
+  }
+  if (output.palmOpening) {
+    output.palmOpening.textContent = `${values.topOpening.toFixed(0)} mm`;
+  }
+  if (output.thickness) {
+    output.thickness.textContent = `${state.thick.toFixed(1)} mm`;
+  }
+  if (output.straps) {
+    output.straps.textContent = values.straps;
+  }
   output.notes.textContent = values.profile.note;
 }
 
@@ -718,9 +778,21 @@ function resizeRenderer() {
 
 function render() {
   readState();
+  resetDerivedCache();
+  const renderKey = geometryStateKey();
+  if (renderKey === lastRenderKey) {
+    return;
+  }
+  lastRenderKey = renderKey;
   const values = spec();
   buildModel(values);
-  renderSpecs(values);
+  const printEstimate = estimatePrint();
+  renderSpecs(values, printEstimate);
+}
+
+function scheduleRender() {
+  window.clearTimeout(renderTimer);
+  renderTimer = window.setTimeout(render, 220);
 }
 
 function animate() {
@@ -730,8 +802,11 @@ function animate() {
 }
 
 Object.values(inputs).filter(Boolean).forEach((input) => {
-  input.addEventListener("input", render);
-  input.addEventListener("change", render);
+  input.addEventListener("input", scheduleRender);
+  input.addEventListener("change", () => {
+    window.clearTimeout(renderTimer);
+    render();
+  });
 });
 
 document.querySelectorAll("[data-hand]").forEach((button) => {

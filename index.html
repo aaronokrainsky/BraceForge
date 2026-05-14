@@ -3,174 +3,48 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>BraceFit Configurator</title>
+    <title>CuffForm Studio</title>
     <link rel="stylesheet" href="styles.css">
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
-        }
-      }
-    </script>
   </head>
-  <body>
-    <main class="app-shell">
-      <section class="workspace" aria-labelledby="app-title">
-        <header class="topbar">
-          <div>
-            <p class="eyebrow">BraceFit Studio</p>
-            <h1 id="app-title">Custom hand brace configurator</h1>
+  <body class="landing-page">
+    <main class="landing-shell">
+      <nav class="landing-nav" aria-label="Primary">
+        <a class="brand-link" href="index.html">CuffForm Studio</a>
+        <a class="nav-config-link" href="configurator.html">Open configurator</a>
+      </nav>
+      <section class="landing-hero" aria-labelledby="landing-title">
+        <div class="landing-copy">
+          <p class="eyebrow">CuffForm Studio</p>
+          <h1 id="landing-title">Custom wrist brace design, ready for 3D printing.</h1>
+          <p class="landing-lede">
+            Build a two-part brace from real hand measurements, preview the model, and export the generated shell as an STL.
+          </p>
+          <div class="landing-actions">
+            <a class="primary-link" href="configurator.html">Open configurator</a>
           </div>
-          <div class="metric-strip" aria-label="Calculated fit summary">
-            <div>
-              <span id="printTime">3.4 hr</span>
-              <small>estimated print time</small>
-            </div>
-          </div>
-        </header>
+        </div>
+        <div class="landing-visual" aria-label="Brace preview image">
+          <img src="tmp_3mf_extract/expanded/Metadata/thumbnail.png" alt="3D printed brace reference preview">
+        </div>
+      </section>
 
-        <div class="content-grid">
-          <aside class="control-panel" aria-label="Brace settings">
-            <div class="panel-section">
-              <h2>Measurements</h2>
-              <label>
-                <span class="label-text">Forearm circumference <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure around the forearm where the lower brace cuff sits. Larger values widen the bottom opening.</span></span></span>
-                <input id="wristCirc" type="number" min="130" max="260" step="1" value="220">
-                <span class="unit">mm</span>
-                <small class="range-text">130-260 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Palm thickness <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure hand thickness at the knuckle area with calipers. Larger values make the palm opening taller.</span></span></span>
-                <input id="metacarpalHeight" type="number" min="18" max="50" step="1" value="28">
-                <span class="unit">mm</span>
-                <small class="range-text">18-50 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Knuckle width <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure across the hand at the knuckles, excluding the thumb. Larger values widen the palm end.</span></span></span>
-                <input id="metacarpalWidth" type="number" min="65" max="120" step="1" value="100">
-                <span class="unit">mm</span>
-                <small class="range-text">65-120 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Thumb opening width <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure thumb clearance across the thumb web/opening. Larger values make the thumb cutout deeper and wider.</span></span></span>
-                <input id="thumbWidth" type="number" min="20" max="100" step="1" value="90">
-                <span class="unit">mm</span>
-                <small class="range-text">20-100 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Thumb opening height <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure the vertical thumb clearance needed from webbing toward the knuckle. Larger values make the thumb cutout taller.</span></span></span>
-                <input id="thumbHeight" type="number" min="35" max="100" step="1" value="72">
-                <span class="unit">mm</span>
-                <small class="range-text">35-100 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Wrist thickness <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure wrist thickness front-to-back with the hand relaxed. Larger values make the wrist section taller.</span></span></span>
-                <input id="wristHeight" type="number" min="30" max="75" step="1" value="52">
-                <span class="unit">mm</span>
-                <small class="range-text">30-75 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Wrist width <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure wrist width side-to-side. Larger values widen the wrist section.</span></span></span>
-                <input id="wristWidth" type="number" min="40" max="90" step="1" value="65">
-                <span class="unit">mm</span>
-                <small class="range-text">40-90 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Forearm length <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure from the wrist crease down the forearm to the lower brace end. Larger values lengthen the forearm side.</span></span></span>
-                <input id="foreWristLength" type="number" min="70" max="160" step="1" value="100">
-                <span class="unit">mm</span>
-                <small class="range-text">70-160 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Palm length <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure from the wrist crease to the knuckle/metacarpal line. Larger values lengthen the hand side.</span></span></span>
-                <input id="wristMetaLength" type="number" min="55" max="110" step="1" value="80">
-                <span class="unit">mm</span>
-                <small class="range-text">55-110 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Thickness <span class="info-bubble" tabindex="0">i<span class="tooltip">Brace wall thickness. Larger values make the shell stronger but stiffer and slower to print.</span></span></span>
-                <input id="thick" type="number" min="1.5" max="6" step="0.5" value="3">
-                <span class="unit">mm</span>
-                <small class="range-text">1.5-6 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Thumb position <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure from the knuckle/metacarpal line to the thumb web. Larger values move the thumb opening lower.</span></span></span>
-                <input id="metaToThumbLength" type="number" min="20" max="65" step="1" value="34">
-                <span class="unit">mm</span>
-                <small class="range-text">20-65 mm</small>
-              </label>
-              <label>
-                <span class="label-text">Strap thickness <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure the strap material thickness. Larger values widen the strap slots.</span></span></span>
-                <input id="velcroThickness" type="number" min="2" max="8" step="0.5" value="4">
-                <span class="unit">mm</span>
-                <small class="range-text">2-8 mm</small>
-              </label>
-            </div>
-
-            <div class="panel-section">
-              <h2>Configuration</h2>
-              <div class="field">
-                <span>Hand</span>
-                <div class="segmented" role="group" aria-label="Hand side">
-                  <button class="active" type="button" data-hand="left">Left</button>
-                  <button type="button" data-hand="right">Right</button>
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          <section class="model-stage" aria-label="Brace model preview">
-            <div class="canvas-toolbar">
-              <button class="icon-button active" type="button" data-camera="iso" aria-label="Isometric view" title="Isometric view">I</button>
-              <button class="icon-button" type="button" data-camera="top" aria-label="Top view" title="Top view">T</button>
-              <button class="icon-button" type="button" data-camera="side" aria-label="Side view" title="Side view">S</button>
-            </div>
-            <div id="braceViewport" role="img" aria-label="Navigable 3D hand brace preview"></div>
-            <div class="viewport-status" id="viewportStatus">Drag to orbit. Scroll to zoom.</div>
-          </section>
-
-          <aside class="spec-panel" aria-label="Generated specifications">
-            <h2>Generated spec</h2>
-            <dl>
-              <div>
-                <dt>Model volume</dt>
-                <dd id="printVolume">0 cm3</dd>
-              </div>
-              <div>
-                <dt>Filament</dt>
-                <dd id="filamentUse">0 g</dd>
-              </div>
-              <div>
-                <dt>Shell length</dt>
-                <dd id="shellLength">180 mm</dd>
-              </div>
-              <div>
-                <dt>Forearm opening</dt>
-                <dd id="wristOpening">220 mm</dd>
-              </div>
-              <div>
-                <dt>Metacarpal opening</dt>
-                <dd id="palmOpening">231 mm</dd>
-              </div>
-              <div>
-                <dt>Thickness</dt>
-                <dd id="thickness">3.0 mm</dd>
-              </div>
-              <div>
-                <dt>Straps</dt>
-                <dd id="straps">3</dd>
-              </div>
-            </dl>
-            <button class="export-button" type="button" id="exportStl">Export STL</button>
-            <div class="notes">
-              <h3>Fabrication notes</h3>
-              <p id="notes">Balanced support uses a reinforced wrist channel and moderate vent spacing.</p>
-            </div>
-          </aside>
+      <section class="landing-band" aria-label="Workflow">
+        <div>
+          <span>01</span>
+          <h2>Measure</h2>
+          <p>Enter forearm, wrist, palm, and thumb opening dimensions with clear ranges.</p>
+        </div>
+        <div>
+          <span>02</span>
+          <h2>Preview</h2>
+          <p>Inspect the mirrored left or right brace with thumb clearance, strap slots, and smooth edges.</p>
+        </div>
+        <div>
+          <span>03</span>
+          <h2>Export</h2>
+          <p>Download the generated STL and check it in slicer software before printing.</p>
         </div>
       </section>
     </main>
-    <script type="module" src="app.js"></script>
   </body>
 </html>
