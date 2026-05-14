@@ -1,45 +1,135 @@
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const SCALE = 0.05;
+
 const defaults = {
-  wrist: 17.2,
-  palm: 8.6,
-  length: 18.4,
-  thumb: 5.2,
+  wristCirc: 220,
+  metacarpalHeight: 28,
+  metacarpalWidth: 100,
+  thumbWidth: 90,
+  thumbHeight: 72,
+  wristHeight: 52,
+  wristWidth: 65,
+  foreWristLength: 100,
+  wristMetaLength: 80,
+  thick: 3,
+  metaToThumbLength: 34,
+  velcroThickness: 4,
   support: "balanced",
   vents: 3,
   thumbRelief: true,
   hand: "left",
-  view: "top"
+  camera: "iso"
 };
 
 const state = { ...defaults };
 
 const inputs = {
-  wrist: document.querySelector("#wrist"),
-  palm: document.querySelector("#palm"),
-  length: document.querySelector("#length"),
-  thumb: document.querySelector("#thumb"),
-  support: document.querySelector("#support"),
-  vents: document.querySelector("#vents"),
-  thumbRelief: document.querySelector("#thumbRelief")
+  wristCirc: document.querySelector("#wristCirc"),
+  metacarpalHeight: document.querySelector("#metacarpalHeight"),
+  metacarpalWidth: document.querySelector("#metacarpalWidth"),
+  thumbWidth: document.querySelector("#thumbWidth"),
+  thumbHeight: document.querySelector("#thumbHeight"),
+  wristHeight: document.querySelector("#wristHeight"),
+  wristWidth: document.querySelector("#wristWidth"),
+  foreWristLength: document.querySelector("#foreWristLength"),
+  wristMetaLength: document.querySelector("#wristMetaLength"),
+  thick: document.querySelector("#thick"),
+  metaToThumbLength: document.querySelector("#metaToThumbLength"),
+  velcroThickness: document.querySelector("#velcroThickness"),
+  support: null,
+  vents: null,
+  thumbRelief: null
 };
 
 const output = {
-  fitSize: document.querySelector("#fitSize"),
-  materialUse: document.querySelector("#materialUse"),
   printTime: document.querySelector("#printTime"),
-  ventLabel: document.querySelector("#ventLabel"),
+  printVolume: document.querySelector("#printVolume"),
+  filamentUse: document.querySelector("#filamentUse"),
+  ventLabel: null,
   shellLength: document.querySelector("#shellLength"),
   wristOpening: document.querySelector("#wristOpening"),
   palmOpening: document.querySelector("#palmOpening"),
   thickness: document.querySelector("#thickness"),
   straps: document.querySelector("#straps"),
   notes: document.querySelector("#notes"),
-  modelLayer: document.querySelector("#modelLayer")
+  viewport: document.querySelector("#braceViewport"),
+  exportStl: document.querySelector("#exportStl")
+};
+
+const slicer = {
+  layerHeight: 0.2,
+  lineWidth: 0.45,
+  printSpeed: 45,
+  travelOverhead: 1.35,
+  layerChangeSeconds: 2.2,
+  filamentDensity: 1.24
 };
 
 const supportProfiles = {
-  flex: { thickness: 2.2, extension: 1.8, strapBias: 0, note: "Flexible support keeps the shell thin and increases vent spacing for everyday mobility." },
-  balanced: { thickness: 3.0, extension: 2.8, strapBias: 1, note: "Balanced support uses a reinforced wrist channel and moderate vent spacing." },
-  rigid: { thickness: 4.0, extension: 4.2, strapBias: 1, note: "Rigid support extends farther down the wrist and adds tighter strap spacing for immobilization." }
+  flex: { strapBias: 0, note: "Flexible support keeps the walls light and uses larger strap spacing." },
+  balanced: { strapBias: 1, note: "Balanced support uses the CAD wall thickness with reinforced Velcro slots." },
+  rigid: { strapBias: 1, note: "Rigid support keeps the same sleeve shape and adds tighter strap spacing." }
+};
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf8faf9);
+
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 160);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+output.viewport.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 16;
+controls.maxDistance = 52;
+
+const modelGroup = new THREE.Group();
+scene.add(modelGroup);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa9a6, 2.1));
+
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+keyLight.position.set(8, -12, 18);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(1024, 1024);
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xd9f0ec, 1.1);
+fillLight.position.set(-11, 7, 12);
+scene.add(fillLight);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(44, 44),
+  new THREE.MeshStandardMaterial({ color: 0xeef3f2, roughness: 0.9 })
+);
+ground.position.z = -2.35;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const grid = new THREE.GridHelper(44, 44, 0xcfd9d7, 0xdfe7e5);
+grid.rotation.x = Math.PI / 2;
+grid.position.z = -2.32;
+scene.add(grid);
+
+const materials = {
+  shell: new THREE.MeshPhysicalMaterial({
+    color: 0x0f7f72,
+    roughness: 0.48,
+    metalness: 0.02,
+    clearcoat: 0.28,
+    side: THREE.DoubleSide
+  }),
+  rim: new THREE.MeshStandardMaterial({ color: 0x08584f, roughness: 0.55 }),
+  strap: new THREE.MeshStandardMaterial({ color: 0x384f7c, roughness: 0.72 }),
+  buckle: new THREE.MeshStandardMaterial({ color: 0xf8faf9, roughness: 0.45, metalness: 0.04 }),
+  skin: new THREE.MeshStandardMaterial({ color: 0xf0c5a5, roughness: 0.72, transparent: true, opacity: 0.35 }),
+  marker: new THREE.MeshStandardMaterial({ color: 0xb64f2d, roughness: 0.55 })
 };
 
 function clamp(value, min, max) {
@@ -47,149 +137,510 @@ function clamp(value, min, max) {
 }
 
 function readState() {
-  state.wrist = clamp(Number(inputs.wrist.value) || defaults.wrist, 10, 28);
-  state.palm = clamp(Number(inputs.palm.value) || defaults.palm, 5, 13);
-  state.length = clamp(Number(inputs.length.value) || defaults.length, 12, 25);
-  state.thumb = clamp(Number(inputs.thumb.value) || defaults.thumb, 2, 9);
-  state.support = inputs.support.value;
-  state.vents = Number(inputs.vents.value);
-  state.thumbRelief = inputs.thumbRelief.checked;
+  state.wristCirc = clamp(Number(inputs.wristCirc.value) || defaults.wristCirc, 120, 320);
+  state.metacarpalHeight = clamp(Number(inputs.metacarpalHeight.value) || defaults.metacarpalHeight, 15, 80);
+  state.metacarpalWidth = clamp(Number(inputs.metacarpalWidth.value) || defaults.metacarpalWidth, 55, 150);
+  state.thumbWidth = clamp(Number(inputs.thumbWidth.value) || defaults.thumbWidth, 18, 100);
+  state.thumbHeight = clamp(Number(inputs.thumbHeight.value) || defaults.thumbHeight, 25, 100);
+  state.wristHeight = clamp(Number(inputs.wristHeight.value) || defaults.wristHeight, 30, 90);
+  state.wristWidth = clamp(Number(inputs.wristWidth.value) || defaults.wristWidth, 40, 100);
+  state.foreWristLength = clamp(Number(inputs.foreWristLength.value) || defaults.foreWristLength, 45, 180);
+  state.wristMetaLength = clamp(Number(inputs.wristMetaLength.value) || defaults.wristMetaLength, 40, 140);
+  state.thick = clamp(Number(inputs.thick.value) || defaults.thick, 1.5, 8);
+  state.metaToThumbLength = clamp(Number(inputs.metaToThumbLength.value) || defaults.metaToThumbLength, 15, 80);
+  state.velcroThickness = clamp(Number(inputs.velcroThickness.value) || defaults.velcroThickness, 2, 10);
+  state.support = defaults.support;
+  state.vents = defaults.vents;
+  state.thumbRelief = true;
 }
 
 function spec() {
   const profile = supportProfiles[state.support];
-  const shellLength = state.length + profile.extension;
-  const wristOpening = state.wrist + 0.8;
-  const palmOpening = state.palm + 0.9;
-  const area = Math.round((shellLength * (state.palm + state.wrist / 3)) * (0.78 + profile.thickness / 14));
-  const straps = clamp(Math.round(shellLength / 7) + profile.strapBias, 2, 4);
-  const printTime = (area * profile.thickness / 125).toFixed(1);
-  const fitSize = state.palm < 7.4 ? "Small" : state.palm > 9.7 || state.wrist > 20.5 ? "Large" : "Medium";
+  const shellLength = state.foreWristLength + state.wristMetaLength;
+  const topOpening = Math.round(Math.PI * Math.sqrt((state.metacarpalWidth ** 2 + state.metacarpalHeight ** 2) / 2));
+  const area = Math.round((shellLength * (state.wristCirc + topOpening) * 0.5 * 0.82) / 100);
+  const straps = clamp(3 + profile.strapBias, 3, 4);
+  const printTime = ((area * state.thick) / 78).toFixed(1);
+  const fitSize = state.wristCirc < 180 ? "Small" : state.wristCirc > 250 ? "Large" : "Medium";
 
-  return { profile, shellLength, wristOpening, palmOpening, area, straps, printTime, fitSize };
+  return { profile, shellLength, topOpening, area, straps, printTime, fitSize };
 }
 
-function pathFromPoints(points) {
-  return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point[0].toFixed(1)} ${point[1].toFixed(1)}`).join(" ") + " Z";
+function clearModel() {
+  while (modelGroup.children.length) {
+    const child = modelGroup.children.pop();
+    child.traverse((object) => {
+      if (object.geometry) {
+        object.geometry.dispose();
+      }
+    });
+  }
 }
 
-function renderTopView(values) {
-  const centerX = 380;
-  const topY = 78;
-  const scale = 16;
-  const length = values.shellLength * scale;
-  const palmHalf = state.palm * scale * 0.56;
-  const wristHalf = state.wrist * scale * 0.16;
-  const cuffHalf = wristHalf + values.profile.thickness * 4.5;
-  const bottomY = topY + length;
-  const thumbY = topY + clamp(state.thumb * scale, 86, length - 105);
+function smoothstep(edge0, edge1, value) {
+  const t = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function sectionAt(yMm, insetMm = 0) {
+  const wristT = smoothstep(-state.foreWristLength, 0, yMm);
+  const metaT = smoothstep(0, state.wristMetaLength, yMm);
+  const bottomWidth = Math.max(42, state.wristWidth * 0.9);
+  const bottomHeight = Math.max(32, state.wristHeight * 1.08);
+  const wristWidth = state.wristWidth;
+  const wristHeight = state.wristHeight;
+  const metaWidth = state.metacarpalWidth;
+  const metaHeight = state.metacarpalHeight;
+
+  const lowWidth = bottomWidth + (wristWidth - bottomWidth) * wristT;
+  const lowHeight = bottomHeight + (wristHeight - bottomHeight) * wristT;
+  const width = yMm < 0 ? lowWidth : wristWidth + (metaWidth - wristWidth) * metaT;
+  const height = yMm < 0 ? lowHeight : wristHeight + (metaHeight - wristHeight) * metaT;
+
+  return {
+    rx: Math.max(4, width / 2 - insetMm) * SCALE,
+    rz: Math.max(4, height / 2 - insetMm) * SCALE
+  };
+}
+
+function pointOnBrace(theta, yMm, insetMm = 0) {
+  const section = sectionAt(yMm, insetMm);
+  return new THREE.Vector3(
+    Math.sin(theta) * section.rx,
+    yMm * SCALE,
+    Math.cos(theta) * section.rz
+  );
+}
+
+function thumbReliefProfile() {
+  const splitHalf = splitThetaHalf();
   const side = state.hand === "left" ? -1 : 1;
-  const thumbX = centerX + side * (palmHalf + 38);
-  const edgePad = 18 + values.profile.thickness * 3;
-  const leftPalm = centerX - palmHalf - edgePad;
-  const rightPalm = centerX + palmHalf + edgePad;
-  const leftCuff = centerX - cuffHalf - 16;
-  const rightCuff = centerX + cuffHalf + 16;
-  const topShell = topY + 86;
-  const shellBottom = bottomY - 14;
-  const notchOuter = centerX + side * (palmHalf + 20);
-  const notchInner = centerX + side * (palmHalf - 20);
-  const thumbRelief = state.thumbRelief
-    ? `${side < 0
-        ? `C ${leftPalm - 10} ${thumbY - 36}, ${notchOuter} ${thumbY - 26}, ${notchOuter} ${thumbY + 6}
-           C ${notchOuter} ${thumbY + 48}, ${notchInner} ${thumbY + 58}, ${leftPalm + 8} ${thumbY + 82}`
-        : `C ${rightPalm + 10} ${thumbY - 36}, ${notchOuter} ${thumbY - 26}, ${notchOuter} ${thumbY + 6}
-           C ${notchOuter} ${thumbY + 48}, ${notchInner} ${thumbY + 58}, ${rightPalm - 8} ${thumbY + 82}`}`
-    : "";
+  const sideSplit = side * (Math.PI / 2 - splitHalf);
+  const thumbY = state.wristMetaLength - state.metaToThumbLength;
+  const topY = clamp(thumbY + state.thumbHeight * 1.06, -state.foreWristLength + 16, state.wristMetaLength - 2);
+  const bottomY = clamp(thumbY - state.thumbHeight * 0.36, -state.foreWristLength + 14, state.wristMetaLength - 24);
+  const palmarStart = -side * clamp((state.thumbWidth / state.metacarpalWidth - 0.48) * 0.46, 0.08, 0.24);
 
-  const shellPath = side < 0
-    ? `M ${centerX - palmHalf * 0.68} ${topShell}
-       C ${leftPalm + 18} ${topShell + 22}, ${leftPalm - 4} ${thumbY - 70}, ${leftPalm} ${thumbY - 38}
-       ${thumbRelief}
-       C ${leftCuff - 16} ${bottomY - 52}, ${leftCuff} ${shellBottom}, ${centerX - wristHalf} ${shellBottom + 8}
-       L ${centerX + wristHalf} ${shellBottom + 8}
-       C ${rightCuff} ${shellBottom}, ${rightCuff + 16} ${bottomY - 54}, ${rightPalm - 5} ${topShell + 34}
-       C ${rightPalm - 30} ${topShell + 12}, ${centerX + palmHalf * 0.55} ${topShell - 6}, ${centerX - palmHalf * 0.68} ${topShell} Z`
-    : `M ${centerX + palmHalf * 0.68} ${topShell}
-       C ${rightPalm - 18} ${topShell + 22}, ${rightPalm + 4} ${thumbY - 70}, ${rightPalm} ${thumbY - 38}
-       ${thumbRelief}
-       C ${rightCuff + 16} ${bottomY - 52}, ${rightCuff} ${shellBottom}, ${centerX + wristHalf} ${shellBottom + 8}
-       L ${centerX - wristHalf} ${shellBottom + 8}
-       C ${leftCuff} ${shellBottom}, ${leftCuff - 16} ${bottomY - 54}, ${leftPalm + 5} ${topShell + 34}
-       C ${leftPalm + 30} ${topShell + 12}, ${centerX - palmHalf * 0.55} ${topShell - 6}, ${centerX + palmHalf * 0.68} ${topShell} Z`;
-
-  const vents = Array.from({ length: state.vents }, (_, index) => {
-    const y = topY + 185 + index * ((length - 265) / Math.max(state.vents - 1, 1));
-    return `<ellipse cx="${centerX}" cy="${y}" rx="${16 + state.palm * 1.1}" ry="8" fill="#eef6f4" stroke="#83aaa5" stroke-width="3"/>`;
-  }).join("");
-
-  const straps = Array.from({ length: values.straps }, (_, index) => {
-    const y = topY + 170 + index * ((length - 225) / Math.max(values.straps - 1, 1));
-    const strapWidth = palmHalf * 1.7 - index * 8;
-    return `<rect x="${centerX - strapWidth / 2}" y="${y}" width="${strapWidth}" height="20" rx="7" fill="#384f7c" opacity="0.88"/>
-      <rect x="${centerX + strapWidth / 2 - 16}" y="${y - 6}" width="30" height="32" rx="6" fill="#f8faf9" stroke="#24395f" stroke-width="4"/>`;
-  }).join("");
-
-  const fingers = [-42, -14, 14, 42].map((offset, index) => {
-    const width = index === 0 || index === 3 ? 23 : 26;
-    const height = index === 1 || index === 2 ? 104 : 88;
-    return `<rect x="${centerX + offset - width / 2}" y="${topY + 8}" width="${width}" height="${height}" rx="13" fill="#f0c5a5" opacity="0.58"/>`;
-  }).join("");
-
-  return `
-    <g opacity="0.82">
-      ${fingers}
-      <ellipse cx="${centerX}" cy="${topY + 132}" rx="${palmHalf * 0.72}" ry="76" fill="#f0c5a5" opacity="0.58"/>
-      <ellipse cx="${thumbX}" cy="${thumbY + 5}" rx="26" ry="58" transform="rotate(${side * -31} ${thumbX} ${thumbY + 5})" fill="#f0c5a5" opacity="0.56"/>
-      <rect x="${centerX - wristHalf * 0.72}" y="${bottomY - 88}" width="${wristHalf * 1.44}" height="116" rx="28" fill="#f0c5a5" opacity="0.5"/>
-    </g>
-    <path d="${shellPath}" fill="url(#braceGradient)" fill-opacity="0.82" stroke="#0f3e3a" stroke-width="5"/>
-    ${vents}
-    ${straps}
-    <line x1="${centerX - palmHalf}" y1="${topY + 128}" x2="${centerX + palmHalf}" y2="${topY + 128}" stroke="#b64f2d" stroke-width="4"/>
-    <text x="${centerX}" y="${topY + 118}" text-anchor="middle" fill="#182322" font-size="18" font-weight="800">${state.palm.toFixed(1)} cm palm</text>
-    <line x1="${rightPalm + 70}" y1="${topShell}" x2="${rightPalm + 70}" y2="${shellBottom}" stroke="#0e766d" stroke-width="4"/>
-    <text x="${rightPalm + 90}" y="${topY + length / 2}" fill="#182322" font-size="18" font-weight="800">${values.shellLength.toFixed(1)} cm</text>
-  `;
+  return { side, sideSplit, topY, bottomY, palmarStart };
 }
 
-function renderSideView(values) {
-  const shellWidth = 420;
-  const shellHeight = 86 + values.profile.thickness * 8;
-  const x = 170;
-  const y = 245;
-  const arc = 36 + state.palm * 2;
-  const vents = Array.from({ length: state.vents }, (_, index) => {
-    const cx = x + 110 + index * ((shellWidth - 220) / Math.max(state.vents - 1, 1));
-    return `<circle cx="${cx}" cy="${y + shellHeight / 2}" r="10" fill="#eef6f4" stroke="#83aaa5" stroke-width="3"/>`;
-  }).join("");
+function isCutout(theta, yMm) {
+  const topSlotY = state.wristMetaLength - 18;
+  const lowerSlotY = -state.foreWristLength * 0.58;
+  const velcroTheta = 2.22;
+  const slitThetaHalf = 0.055 + state.velcroThickness * 0.004;
+  const slitHalfHeight = 15 + state.velcroThickness * 1.2;
 
-  return `
-    <path d="M ${x} ${y + arc} C ${x + 82} ${y - 34}, ${x + shellWidth - 82} ${y - 34}, ${x + shellWidth} ${y + arc} L ${x + shellWidth - 32} ${y + shellHeight} C ${x + shellWidth - 130} ${y + shellHeight + 34}, ${x + 130} ${y + shellHeight + 34}, ${x + 32} ${y + shellHeight} Z" fill="url(#braceGradient)" stroke="#0f3e3a" stroke-width="5"/>
-    ${vents}
-    <path d="M ${x + 48} ${y + shellHeight - 4} C ${x + 145} ${y + shellHeight + 48}, ${x + 275} ${y + shellHeight + 48}, ${x + 372} ${y + shellHeight - 4}" fill="none" stroke="#384f7c" stroke-width="18" stroke-linecap="round"/>
-    <line x1="${x + 40}" y1="${y - 42}" x2="${x + shellWidth - 40}" y2="${y - 42}" stroke="#b64f2d" stroke-width="4"/>
-    <text x="${x + shellWidth / 2}" y="${y - 58}" text-anchor="middle" fill="#182322" font-size="18" font-weight="800">${values.profile.thickness.toFixed(1)} mm shell profile</text>
-  `;
+  const inSlot = (slotTheta, slotY, heightScale = 1) =>
+    Math.abs(Math.abs(theta) - slotTheta) < slitThetaHalf &&
+    Math.abs(yMm - slotY) < slitHalfHeight * heightScale;
+
+  if (inSlot(velcroTheta, topSlotY, 0.72) || inSlot(2.48, lowerSlotY, 1.55) || inSlot(2.48, lowerSlotY - 52, 1.18)) {
+    return true;
+  }
+
+  if (state.thumbRelief) {
+    const { side, sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
+    const t = clamp((topY - yMm) / Math.max(topY - bottomY, 1), 0, 1);
+    const curveEase = smoothstep(0.0, 0.86, t);
+    const curveTheta = sideSplit + (palmarStart - sideSplit) * curveEase;
+    const onThumbSide = side > 0 ? theta >= curveTheta : theta <= curveTheta;
+    const inVerticalSpan = yMm <= topY && yMm >= bottomY;
+
+    if (inVerticalSpan && onThumbSide) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function splitThetaHalf() {
+  const splitGapMm = clamp(state.metacarpalWidth * 0.18, 16, 28);
+  const splitRadius = (sectionAt((state.wristMetaLength - state.foreWristLength) / 2, 0).rx + sectionAt((state.wristMetaLength - state.foreWristLength) / 2, 0).rz) / (2 * SCALE);
+  return clamp(splitGapMm / Math.max(splitRadius, 1), 0.18, 0.34);
+}
+
+function buildBraceMesh(thetaMin, thetaMax) {
+  const thetaSegments = 120;
+  const ySegments = 220;
+  const yMin = -state.foreWristLength;
+  const yMax = state.wristMetaLength;
+  const positions = [];
+  const normals = [];
+  const indices = [];
+  const outerIndex = [];
+  const innerIndex = [];
+
+  for (let iy = 0; iy <= ySegments; iy += 1) {
+    const yMm = yMin + (iy / ySegments) * (yMax - yMin);
+    outerIndex[iy] = [];
+    innerIndex[iy] = [];
+
+    for (let it = 0; it <= thetaSegments; it += 1) {
+      const theta = thetaMin + (it / thetaSegments) * (thetaMax - thetaMin);
+      const outer = pointOnBrace(theta, yMm, 0);
+      const inner = pointOnBrace(theta, yMm, state.thick);
+      const normal = new THREE.Vector3(Math.sin(theta), 0, Math.cos(theta)).normalize();
+
+      outerIndex[iy][it] = positions.length / 3;
+      positions.push(outer.x, outer.y, outer.z);
+      normals.push(normal.x, normal.y, normal.z);
+
+      innerIndex[iy][it] = positions.length / 3;
+      positions.push(inner.x, inner.y, inner.z);
+      normals.push(-normal.x, -normal.y, -normal.z);
+    }
+  }
+
+  for (let iy = 0; iy < ySegments; iy += 1) {
+    const yA = yMin + (iy / ySegments) * (yMax - yMin);
+    const yB = yMin + ((iy + 1) / ySegments) * (yMax - yMin);
+    const yMid = (yA + yB) / 2;
+
+    for (let it = 0; it < thetaSegments; it += 1) {
+      const thetaA = thetaMin + (it / thetaSegments) * (thetaMax - thetaMin);
+      const thetaB = thetaMin + ((it + 1) / thetaSegments) * (thetaMax - thetaMin);
+      const thetaMid = (thetaA + thetaB) / 2;
+
+      if (!isCutout(thetaMid, yMid)) {
+        const a = outerIndex[iy][it];
+        const b = outerIndex[iy][it + 1];
+        const c = outerIndex[iy + 1][it + 1];
+        const d = outerIndex[iy + 1][it];
+        const ai = innerIndex[iy][it];
+        const bi = innerIndex[iy][it + 1];
+        const ci = innerIndex[iy + 1][it + 1];
+        const di = innerIndex[iy + 1][it];
+        indices.push(a, d, b, b, d, c);
+        indices.push(ai, bi, di, bi, ci, di);
+      }
+
+      const leftOpen = isCutout(thetaMid, yMid) && !isCutout(thetaA - 0.03, yMid);
+      const rightOpen = isCutout(thetaMid, yMid) && !isCutout(thetaB + 0.03, yMid);
+      if (leftOpen || rightOpen) {
+        const itEdge = leftOpen ? it : it + 1;
+        const o1 = outerIndex[iy][itEdge];
+        const o2 = outerIndex[iy + 1][itEdge];
+        const i1 = innerIndex[iy][itEdge];
+        const i2 = innerIndex[iy + 1][itEdge];
+        indices.push(o1, i1, o2, i1, i2, o2);
+      }
+    }
+  }
+
+  for (let it = 0; it < thetaSegments; it += 1) {
+    const addCap = (iy) => {
+      const a = outerIndex[iy][it];
+      const b = outerIndex[iy][it + 1];
+      const c = innerIndex[iy][it + 1];
+      const d = innerIndex[iy][it];
+      indices.push(a, b, d, b, c, d);
+    };
+    addCap(0);
+    addCap(ySegments);
+  }
+
+  for (let iy = 0; iy < ySegments; iy += 1) {
+    const yA = yMin + (iy / ySegments) * (yMax - yMin);
+    const yB = yMin + ((iy + 1) / ySegments) * (yMax - yMin);
+    const yMid = (yA + yB) / 2;
+    const addSeam = (it) => {
+      const theta = thetaMin + (it / thetaSegments) * (thetaMax - thetaMin);
+      if (isCutout(theta, yMid)) {
+        return;
+      }
+      const a = outerIndex[iy][it];
+      const b = outerIndex[iy + 1][it];
+      const c = innerIndex[iy + 1][it];
+      const d = innerIndex[iy][it];
+      indices.push(a, b, d, b, c, d);
+    };
+    addSeam(0);
+    addSeam(thetaSegments);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function addCapsule(group, radius, length, position, rotation, material) {
+  const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius, length, 16, 32), material);
+  mesh.position.set(position.x, position.y, position.z);
+  mesh.rotation.set(rotation.x, rotation.y, rotation.z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+
+function addBox(group, width, height, depth, position, material) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+  mesh.position.set(position.x, position.y, position.z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+
+function signedTriangleVolume(a, b, c) {
+  return a.dot(b.cross(c)) / 6;
+}
+
+function meshVolumeMm3(mesh) {
+  const geometry = mesh.geometry;
+  const position = geometry.attributes.position;
+  const index = geometry.index;
+  const matrix = mesh.matrixWorld;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  let volume = 0;
+
+  const readVertex = (vertexIndex, target) => {
+    target.fromBufferAttribute(position, vertexIndex).applyMatrix4(matrix);
+  };
+
+  if (index) {
+    for (let i = 0; i < index.count; i += 3) {
+      readVertex(index.getX(i), a);
+      readVertex(index.getX(i + 1), b);
+      readVertex(index.getX(i + 2), c);
+      volume += signedTriangleVolume(a, b, c);
+    }
+  } else {
+    for (let i = 0; i < position.count; i += 3) {
+      readVertex(i, a);
+      readVertex(i + 1, b);
+      readVertex(i + 2, c);
+      volume += signedTriangleVolume(a, b, c);
+    }
+  }
+
+  return Math.abs(volume) / (SCALE ** 3);
+}
+
+function estimatePrint() {
+  modelGroup.updateMatrixWorld(true);
+  let volumeMm3 = 0;
+
+  modelGroup.traverse((object) => {
+    if (object.isMesh && object.material === materials.shell) {
+      volumeMm3 += meshVolumeMm3(object);
+    }
+  });
+
+  const shellLength = state.foreWristLength + state.wristMetaLength;
+  const layerCount = Math.ceil(shellLength / slicer.layerHeight);
+  const extrusionLength = volumeMm3 / (slicer.lineWidth * slicer.layerHeight);
+  const extrusionSeconds = extrusionLength / slicer.printSpeed;
+  const layerSeconds = layerCount * slicer.layerChangeSeconds;
+  const totalSeconds = (extrusionSeconds + layerSeconds) * slicer.travelOverhead;
+  const grams = (volumeMm3 / 1000) * slicer.filamentDensity;
+
+  return {
+    volumeMm3,
+    grams,
+    hours: totalSeconds / 3600
+  };
+}
+
+function addRims(values) {
+  const splitHalf = splitThetaHalf();
+  const rimRanges = [
+    [-Math.PI / 2 + splitHalf, Math.PI / 2 - splitHalf],
+    [Math.PI / 2 + splitHalf, Math.PI * 1.5 - splitHalf]
+  ];
+
+  const addTube = (points, radius = 0.09) => {
+    const curve = new THREE.CatmullRomCurve3(points);
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(16, points.length * 2), radius, 10, false), materials.rim);
+    tube.castShadow = true;
+    tube.receiveShadow = true;
+    modelGroup.add(tube);
+  };
+
+  rimRanges.forEach(([start, end]) => {
+    const topCurve = [];
+    const bottomCurve = [];
+    for (let i = 0; i <= 50; i += 1) {
+      const theta = start + (i / 50) * (end - start);
+      topCurve.push(pointOnBrace(theta, state.wristMetaLength, -0.8));
+      bottomCurve.push(pointOnBrace(theta, -state.foreWristLength, -0.8));
+    }
+    addTube(topCurve);
+    addTube(bottomCurve);
+  });
+
+  const yStart = -state.foreWristLength + 10;
+  const yEnd = state.wristMetaLength - 10;
+  [-Math.PI / 2 - splitHalf, -Math.PI / 2 + splitHalf, Math.PI / 2 - splitHalf, Math.PI / 2 + splitHalf].forEach((theta) => {
+    const { side, sideSplit, topY, bottomY } = thumbReliefProfile();
+    const isThumbSideSplit = state.thumbRelief && side * theta > 0 && Math.abs(theta - sideSplit) < 0.02;
+    const points = [];
+    const flushSegment = () => {
+      if (points.length > 1) {
+        addTube([...points], 0.055);
+      }
+      points.length = 0;
+    };
+
+    for (let i = 0; i <= 80; i += 1) {
+      const y = yStart + (i / 80) * (yEnd - yStart);
+      if (isThumbSideSplit && y >= bottomY) {
+        flushSegment();
+        continue;
+      }
+      points.push(pointOnBrace(theta, y, -0.7));
+    }
+    flushSegment();
+  });
+
+  if (state.thumbRelief) {
+    const { sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
+    const cutoutEdge = [];
+    const lowerEdge = [];
+
+    for (let i = 0; i <= 48; i += 1) {
+      const y = topY + ((bottomY - topY) * i) / 48;
+      const t = clamp((topY - y) / Math.max(topY - bottomY, 1), 0, 1);
+      const curveEase = smoothstep(0.0, 0.86, t);
+      const theta = sideSplit + (palmarStart - sideSplit) * curveEase;
+      cutoutEdge.push(pointOnBrace(theta, y, -0.95));
+    }
+
+    for (let i = 0; i <= 28; i += 1) {
+      const t = i / 28;
+      const theta = palmarStart + (sideSplit - palmarStart) * t;
+      lowerEdge.push(pointOnBrace(theta, bottomY, -0.95));
+    }
+
+    addTube(cutoutEdge, 0.065);
+    addTube(lowerEdge, 0.055);
+  }
+
+}
+
+function addHandGhost() {
+  const wristY = -state.foreWristLength * SCALE * 0.25;
+  const palmY = state.wristMetaLength * SCALE * 0.48;
+  addCapsule(modelGroup, state.wristWidth * SCALE * 0.22, state.foreWristLength * SCALE * 1.0, { x: 0, y: wristY, z: -0.25 }, { x: 0, y: 0, z: 0 }, materials.skin);
+  addCapsule(modelGroup, state.metacarpalWidth * SCALE * 0.22, 1.0, { x: 0, y: palmY, z: -0.18 }, { x: Math.PI / 2, y: 0, z: 0 }, materials.skin);
+}
+
+function buildModel(values) {
+  clearModel();
+  const splitHalf = splitThetaHalf();
+  const panels = [
+    [-Math.PI / 2 + splitHalf, Math.PI / 2 - splitHalf],
+    [Math.PI / 2 + splitHalf, Math.PI * 1.5 - splitHalf]
+  ];
+
+  panels.forEach(([thetaMin, thetaMax]) => {
+    const shell = new THREE.Mesh(buildBraceMesh(thetaMin, thetaMax), materials.shell);
+    shell.castShadow = true;
+    shell.receiveShadow = true;
+    modelGroup.add(shell);
+  });
+
+  addHandGhost();
+}
+
+function formatHours(hours) {
+  const totalMinutes = Math.max(1, Math.round(hours * 60));
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return h > 0 ? `${h} hr ${m.toString().padStart(2, "0")} min` : `${m} min`;
+}
+
+async function exportStl() {
+  const exportGroup = new THREE.Group();
+
+  modelGroup.updateMatrixWorld(true);
+  modelGroup.traverse((object) => {
+    if (object.isMesh && object.material === materials.shell) {
+      const mesh = new THREE.Mesh(object.geometry.clone(), object.material);
+      mesh.matrix.copy(object.matrixWorld);
+      mesh.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
+      mesh.position.multiplyScalar(1 / SCALE);
+      mesh.scale.multiplyScalar(1 / SCALE);
+      exportGroup.add(mesh);
+    }
+  });
+
+  exportGroup.updateMatrixWorld(true);
+  const { STLExporter } = await import("three/addons/exporters/STLExporter.js");
+  const exporter = new STLExporter();
+  const stl = exporter.parse(exportGroup, { binary: false });
+  const blob = new Blob([stl], { type: "model/stl" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `brace-${state.hand}-thumb-${Math.round(state.thumbWidth)}mm.stl`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function renderSpecs(values) {
+  output.printTime.textContent = `${values.printTime} hr`;
+  if (output.printVolume) {
+    output.printVolume.textContent = "--";
+  }
+  if (output.filamentUse) {
+    output.filamentUse.textContent = "--";
+  }
+  if (output.ventLabel) {
+    output.ventLabel.textContent = state.vents;
+  }
+  output.shellLength.textContent = `${values.shellLength.toFixed(0)} mm`;
+  output.wristOpening.textContent = `${state.wristCirc.toFixed(0)} mm`;
+  output.palmOpening.textContent = `${values.topOpening.toFixed(0)} mm`;
+  output.thickness.textContent = `${state.thick.toFixed(1)} mm`;
+  output.straps.textContent = values.straps;
+  output.notes.textContent = values.profile.note;
+}
+
+function setCamera(mode = state.camera) {
+  state.camera = mode;
+  const targetY = (state.wristMetaLength - state.foreWristLength) * SCALE * 0.5;
+  if (mode === "top") {
+    camera.position.set(0, targetY, 23);
+  } else if (mode === "side") {
+    camera.position.set(15, -12, 8);
+  } else {
+    camera.position.set(10, -17, 12);
+  }
+  controls.target.set(0, targetY, 0);
+  controls.update();
+}
+
+function resizeRenderer() {
+  const rect = output.viewport.getBoundingClientRect();
+  renderer.setSize(Math.max(1, Math.floor(rect.width)), Math.max(1, Math.floor(rect.height)), false);
+  camera.aspect = rect.width / Math.max(1, rect.height);
+  camera.updateProjectionMatrix();
 }
 
 function render() {
   readState();
   const values = spec();
-  output.fitSize.textContent = values.fitSize;
-  output.materialUse.textContent = `${values.area} cm2`;
-  output.printTime.textContent = `${values.printTime} hr`;
-  output.ventLabel.textContent = state.vents;
-  output.shellLength.textContent = `${values.shellLength.toFixed(1)} cm`;
-  output.wristOpening.textContent = `${values.wristOpening.toFixed(1)} cm`;
-  output.palmOpening.textContent = `${values.palmOpening.toFixed(1)} cm`;
-  output.thickness.textContent = `${values.profile.thickness.toFixed(1)} mm`;
-  output.straps.textContent = values.straps;
-  output.notes.textContent = values.profile.note;
-  output.modelLayer.innerHTML = state.view === "top" ? renderTopView(values) : renderSideView(values);
+  buildModel(values);
+  renderSpecs(values);
 }
 
-Object.values(inputs).forEach((input) => {
+function animate() {
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+Object.values(inputs).filter(Boolean).forEach((input) => {
   input.addEventListener("input", render);
   input.addEventListener("change", render);
 });
@@ -203,18 +654,17 @@ document.querySelectorAll("[data-hand]").forEach((button) => {
   });
 });
 
-document.querySelectorAll("[data-view]").forEach((button) => {
+document.querySelectorAll("[data-camera]").forEach((button) => {
   button.addEventListener("click", () => {
-    document.querySelectorAll("[data-view]").forEach((item) => item.classList.remove("active"));
+    document.querySelectorAll("[data-camera]").forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
-    state.view = button.dataset.view;
-    render();
+    setCamera(button.dataset.camera);
   });
 });
 
 document.querySelector("#reset").addEventListener("click", () => {
   Object.assign(state, defaults);
-  Object.entries(inputs).forEach(([key, input]) => {
+  Object.entries(inputs).filter(([, input]) => Boolean(input)).forEach(([key, input]) => {
     if (input.type === "checkbox") {
       input.checked = defaults[key];
     } else {
@@ -222,8 +672,22 @@ document.querySelector("#reset").addEventListener("click", () => {
     }
   });
   document.querySelectorAll("[data-hand]").forEach((item) => item.classList.toggle("active", item.dataset.hand === defaults.hand));
-  document.querySelectorAll("[data-view]").forEach((item) => item.classList.toggle("active", item.dataset.view === defaults.view));
+  document.querySelectorAll("[data-camera]").forEach((item) => item.classList.toggle("active", item.dataset.camera === defaults.camera));
   render();
+  setCamera(defaults.camera);
 });
 
-render();
+if (output.exportStl) {
+  output.exportStl.addEventListener("click", exportStl);
+}
+
+window.addEventListener("resize", resizeRenderer);
+
+resizeRenderer();
+try {
+  render();
+} catch (error) {
+  console.error("Initial render failed", error);
+}
+setCamera(defaults.camera);
+animate();

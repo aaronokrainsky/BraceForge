@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>BraceFit Configurator</title>
     <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
   </head>
   <body>
     <main class="app-shell">
@@ -16,16 +24,8 @@
           </div>
           <div class="metric-strip" aria-label="Calculated fit summary">
             <div>
-              <span id="fitSize">Medium</span>
-              <small>fit</small>
-            </div>
-            <div>
-              <span id="materialUse">142 cm2</span>
-              <small>shell area</small>
-            </div>
-            <div>
               <span id="printTime">3.4 hr</span>
-              <small>print time</small>
+              <small>estimated print time</small>
             </div>
           </div>
         </header>
@@ -35,24 +35,64 @@
             <div class="panel-section">
               <h2>Measurements</h2>
               <label>
-                Wrist circumference
-                <input id="wrist" type="number" min="10" max="28" step="0.1" value="17.2">
-                <span>cm</span>
+                Wrist_Circ
+                <input id="wristCirc" type="number" min="120" max="320" step="1" value="220">
+                <span>mm</span>
               </label>
               <label>
-                Palm width
-                <input id="palm" type="number" min="5" max="13" step="0.1" value="8.6">
-                <span>cm</span>
+                Metacarpal_Height
+                <input id="metacarpalHeight" type="number" min="15" max="80" step="1" value="28">
+                <span>mm</span>
               </label>
               <label>
-                Hand length
-                <input id="length" type="number" min="12" max="25" step="0.1" value="18.4">
-                <span>cm</span>
+                Metacarpal_Width
+                <input id="metacarpalWidth" type="number" min="55" max="150" step="1" value="100">
+                <span>mm</span>
               </label>
               <label>
-                Thumb offset
-                <input id="thumb" type="number" min="2" max="9" step="0.1" value="5.2">
-                <span>cm</span>
+                Thumb_Width
+                <input id="thumbWidth" type="number" min="18" max="100" step="1" value="90">
+                <span>mm</span>
+              </label>
+              <label>
+                Thumb_Height
+                <input id="thumbHeight" type="number" min="25" max="100" step="1" value="72">
+                <span>mm</span>
+              </label>
+              <label>
+                Wrist_Height
+                <input id="wristHeight" type="number" min="30" max="90" step="1" value="52">
+                <span>mm</span>
+              </label>
+              <label>
+                Wrist_Width
+                <input id="wristWidth" type="number" min="40" max="100" step="1" value="65">
+                <span>mm</span>
+              </label>
+              <label>
+                Fore_Wrist_Length
+                <input id="foreWristLength" type="number" min="45" max="180" step="1" value="100">
+                <span>mm</span>
+              </label>
+              <label>
+                Wrist_Meta_Length
+                <input id="wristMetaLength" type="number" min="40" max="140" step="1" value="80">
+                <span>mm</span>
+              </label>
+              <label>
+                Thick
+                <input id="thick" type="number" min="1.5" max="8" step="0.5" value="3">
+                <span>mm</span>
+              </label>
+              <label>
+                Meta_to_Thumb_Length
+                <input id="metaToThumbLength" type="number" min="15" max="80" step="1" value="34">
+                <span>mm</span>
+              </label>
+              <label>
+                Velcro_Thickness
+                <input id="velcroThickness" type="number" min="2" max="10" step="0.5" value="4">
+                <span>mm</span>
               </label>
             </div>
 
@@ -65,63 +105,42 @@
                   <button type="button" data-hand="right">Right</button>
                 </div>
               </div>
-              <label>
-                Support level
-                <select id="support">
-                  <option value="flex">Flexible</option>
-                  <option value="balanced" selected>Balanced</option>
-                  <option value="rigid">Rigid</option>
-                </select>
-              </label>
-              <label>
-                Ventilation
-                <input id="vents" type="range" min="0" max="5" step="1" value="3">
-                <span id="ventLabel">3</span>
-              </label>
-              <label class="check">
-                <input id="thumbRelief" type="checkbox" checked>
-                Thumb relief cutout
-              </label>
             </div>
           </aside>
 
           <section class="model-stage" aria-label="Brace model preview">
             <div class="canvas-toolbar">
-              <button class="icon-button active" type="button" data-view="top" aria-label="Top view" title="Top view">T</button>
-              <button class="icon-button" type="button" data-view="side" aria-label="Side view" title="Side view">S</button>
+              <button class="icon-button active" type="button" data-camera="iso" aria-label="Isometric view" title="Isometric view">I</button>
+              <button class="icon-button" type="button" data-camera="top" aria-label="Top view" title="Top view">T</button>
+              <button class="icon-button" type="button" data-camera="side" aria-label="Side view" title="Side view">S</button>
               <button class="icon-button" type="button" id="reset" aria-label="Reset" title="Reset">R</button>
             </div>
-            <svg id="braceModel" viewBox="0 0 760 560" role="img" aria-labelledby="modelTitle modelDesc">
-              <title id="modelTitle">Parametric brace model</title>
-              <desc id="modelDesc">A generated hand brace shell with thumb opening, straps, vents, and sizing markers.</desc>
-              <defs>
-                <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-                  <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#dfe6ea" stroke-width="1"/>
-                </pattern>
-                <linearGradient id="braceGradient" x1="0" x2="1" y1="0" y2="1">
-                  <stop offset="0" stop-color="#f9fbfb"/>
-                  <stop offset="1" stop-color="#b9d1cf"/>
-                </linearGradient>
-              </defs>
-              <rect width="760" height="560" fill="url(#grid)"/>
-              <g id="modelLayer"></g>
-            </svg>
+            <div id="braceViewport" role="img" aria-label="Navigable 3D hand brace preview"></div>
+            <div class="viewport-status" id="viewportStatus">Drag to orbit. Scroll to zoom.</div>
           </section>
 
           <aside class="spec-panel" aria-label="Generated specifications">
             <h2>Generated spec</h2>
             <dl>
               <div>
+                <dt>Model volume</dt>
+                <dd id="printVolume">0 cm3</dd>
+              </div>
+              <div>
+                <dt>Filament</dt>
+                <dd id="filamentUse">0 g</dd>
+              </div>
+              <div>
                 <dt>Shell length</dt>
-                <dd id="shellLength">21.2 cm</dd>
+                <dd id="shellLength">180 mm</dd>
               </div>
               <div>
                 <dt>Wrist opening</dt>
-                <dd id="wristOpening">18.0 cm</dd>
+                <dd id="wristOpening">220 mm</dd>
               </div>
               <div>
-                <dt>Palm opening</dt>
-                <dd id="palmOpening">9.5 cm</dd>
+                <dt>Metacarpal opening</dt>
+                <dd id="palmOpening">231 mm</dd>
               </div>
               <div>
                 <dt>Thickness</dt>
@@ -132,6 +151,7 @@
                 <dd id="straps">3</dd>
               </div>
             </dl>
+            <button class="export-button" type="button" id="exportStl">Export STL</button>
             <div class="notes">
               <h3>Fabrication notes</h3>
               <p id="notes">Balanced support uses a reinforced wrist channel and moderate vent spacing.</p>
@@ -140,6 +160,6 @@
         </div>
       </section>
     </main>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

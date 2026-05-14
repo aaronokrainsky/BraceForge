@@ -84,9 +84,9 @@ h3 {
 
 .metric-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  grid-template-columns: minmax(180px, 1fr);
   gap: 8px;
-  min-width: min(430px, 100%);
+  min-width: min(240px, 100%);
 }
 
 .metric-strip div {
@@ -151,7 +151,7 @@ label + label,
 
 input[type="number"],
 select {
-  width: 86px;
+  width: 92px;
   border: 1px solid var(--line);
   background: var(--field);
   color: var(--ink);
@@ -227,11 +227,36 @@ input[type="range"] {
   border-radius: 6px;
 }
 
-#braceModel {
+#braceViewport {
   display: block;
   width: 100%;
   height: 100%;
   min-height: 520px;
+  background:
+    linear-gradient(#dfe7e5 1px, transparent 1px),
+    linear-gradient(90deg, #dfe7e5 1px, transparent 1px),
+    #f8faf9;
+  background-size: 32px 32px;
+}
+
+#braceViewport canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.viewport-status {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  z-index: 2;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--muted);
+  font-size: 0.82rem;
+  pointer-events: none;
 }
 
 .spec-panel dl {
@@ -261,6 +286,18 @@ dd {
   padding: 14px;
   background: #f5f8f7;
   border-left: 4px solid var(--accent-2);
+}
+
+.export-button {
+  width: 100%;
+  margin-top: 18px;
+  min-height: 42px;
+  border: 1px solid #09645c;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .notes p {
@@ -299,7 +336,7 @@ dd {
   }
 
   .model-stage,
-  #braceModel {
+  #braceViewport {
     min-height: 430px;
   }
 }
