@@ -8,7 +8,7 @@ const defaults = {
   metacarpalHeight: 28,
   metacarpalWidth: 100,
   thumbWidth: 90,
-  thumbHeight: 72,
+  thumbHeight: 60,
   wristHeight: 52,
   wristWidth: 65,
   foreWristLength: 100,
@@ -52,7 +52,6 @@ const inputs = {
 
 const output = {
   printTime: document.querySelector("#printTime"),
-  printVolume: document.querySelector("#printVolume"),
   filamentUse: document.querySelector("#filamentUse"),
   ventLabel: null,
   shellLength: document.querySelector("#shellLength"),
@@ -60,9 +59,9 @@ const output = {
   palmOpening: document.querySelector("#palmOpening"),
   thickness: document.querySelector("#thickness"),
   straps: document.querySelector("#straps"),
-  notes: document.querySelector("#notes"),
   viewport: document.querySelector("#braceViewport"),
-  exportStl: document.querySelector("#exportStl")
+  exportStl: document.querySelector("#exportStl"),
+  export3mf: document.querySelector("#export3mf")
 };
 
 const slicer = {
@@ -72,6 +71,11 @@ const slicer = {
   travelOverhead: 1.35,
   layerChangeSeconds: 2.2,
   filamentDensity: 1.24
+};
+
+const meshResolution = {
+  preview: { thetaSegments: 240, ySegments: 420 },
+  export: { thetaSegments: 320, ySegments: 560 }
 };
 
 const supportProfiles = {
@@ -135,7 +139,7 @@ const materials = {
   rim: new THREE.MeshStandardMaterial({ color: 0x08584f, roughness: 0.55 }),
   strap: new THREE.MeshStandardMaterial({ color: 0x384f7c, roughness: 0.72 }),
   buckle: new THREE.MeshStandardMaterial({ color: 0xf8faf9, roughness: 0.45, metalness: 0.04 }),
-  skin: new THREE.MeshStandardMaterial({ color: 0xf0c5a5, roughness: 0.72, transparent: true, opacity: 0.35 }),
+  skin: new THREE.MeshStandardMaterial({ color: 0xf0c5a5, roughness: 0.72, transparent: true, opacity: 0.28, depthWrite: false }),
   marker: new THREE.MeshStandardMaterial({ color: 0xb64f2d, roughness: 0.55 })
 };
 
@@ -179,14 +183,15 @@ function readState() {
   state.wristCirc = clamp(Number(inputs.wristCirc?.value) || defaults.wristCirc, 130, 260);
   state.metacarpalHeight = clamp(Number(inputs.metacarpalHeight.value) || defaults.metacarpalHeight, 18, 50);
   state.metacarpalWidth = clamp(Number(inputs.metacarpalWidth.value) || defaults.metacarpalWidth, 65, 120);
-  state.thumbWidth = clamp(Number(inputs.thumbWidth.value) || defaults.thumbWidth, 20, 100);
-  state.thumbHeight = clamp(Number(inputs.thumbHeight.value) || defaults.thumbHeight, 35, 100);
+  state.thumbWidth = clamp(Number(inputs.thumbWidth.value) || defaults.thumbWidth, 20, 60);
+  const thumbHeightValue = Number(inputs.thumbHeight.value);
+  state.thumbHeight = clamp(Number.isFinite(thumbHeightValue) ? thumbHeightValue : defaults.thumbHeight, 0, 80);
   state.wristHeight = clamp(Number(inputs.wristHeight.value) || defaults.wristHeight, 30, 75);
   state.wristWidth = clamp(Number(inputs.wristWidth.value) || defaults.wristWidth, 40, 90);
   state.foreWristLength = clamp(Number(inputs.foreWristLength.value) || defaults.foreWristLength, 70, 160);
   state.wristMetaLength = clamp(Number(inputs.wristMetaLength.value) || defaults.wristMetaLength, 55, 110);
   state.thick = defaults.thick;
-  state.metaToThumbLength = clamp(Number(inputs.metaToThumbLength.value) || defaults.metaToThumbLength, 20, 65);
+  state.metaToThumbLength = clamp(Number(inputs.metaToThumbLength.value) || defaults.metaToThumbLength, 20, 100);
   state.velcroThickness = clamp(Number(inputs.velcroThickness.value) || defaults.velcroThickness, 2, 8);
   state.support = defaults.support;
   state.vents = defaults.vents;
@@ -265,8 +270,9 @@ function filletInsetAtDistance(distanceMm, radiusMm) {
 function thumbReliefCurveTheta(yMm) {
   const { sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
   const t = clamp((topY - yMm) / Math.max(topY - bottomY, 1), 0, 1);
-  const curveEase = smoothstep(0.0, 0.86, t);
-  return sideSplit + (palmarStart - sideSplit) * curveEase;
+  const curveEase = smoothstep(0.04, 0.92, t);
+  const roundedBottom = 1 - Math.pow(1 - curveEase, 1.65);
+  return sideSplit + (palmarStart - sideSplit) * roundedBottom;
 }
 
 function distanceToThumbReliefEdge(theta, yMm, averageRadiusMm) {
@@ -275,7 +281,7 @@ function distanceToThumbReliefEdge(theta, yMm, averageRadiusMm) {
   }
 
   const { sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
-  const radiusMm = state.thick * 0.5;
+  const radiusMm = state.thick * 0.75;
   const distances = [];
 
   if (yMm >= bottomY - radiusMm && yMm <= topY + radiusMm) {
@@ -290,6 +296,32 @@ function distanceToThumbReliefEdge(theta, yMm, averageRadiusMm) {
   distances.push(Math.hypot((theta - lowerTheta) * averageRadiusMm, yMm - bottomY));
 
   return Math.min(...distances);
+}
+
+function smoothedThumbBoundaryTheta(theta, yMm, averageRadiusMm) {
+  if (!state.thumbRelief) {
+    return theta;
+  }
+
+  const { sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
+  if (yMm < bottomY || yMm > topY) {
+    return theta;
+  }
+
+  const curveTheta = thumbReliefCurveTheta(yMm);
+  const minTheta = Math.min(sideSplit, palmarStart);
+  const maxTheta = Math.max(sideSplit, palmarStart);
+  const lowerTheta = clamp(theta, minTheta, maxTheta);
+  const boundaryTheta = Math.abs(theta - curveTheta) < Math.abs(theta - lowerTheta) ? curveTheta : lowerTheta;
+  const distanceMm = Math.abs(theta - boundaryTheta) * averageRadiusMm;
+  const smoothBandMm = 2.4;
+
+  if (distanceMm > smoothBandMm) {
+    return theta;
+  }
+
+  const blend = 1 - smoothstep(0, smoothBandMm, distanceMm);
+  return theta + (boundaryTheta - theta) * blend * 0.65;
 }
 
 function exposedEdgeInset(theta, yMm, thetaMin, thetaMax, yMin, yMax) {
@@ -312,6 +344,13 @@ function exposedEdgeInset(theta, yMm, thetaMin, thetaMax, yMin, yMax) {
   );
 }
 
+function pointOnSmoothedBrace(theta, yMm, insetMm = 0) {
+  const section = sectionAt(yMm, 0);
+  const averageRadiusMm = ((section.rx + section.rz) / 2) / SCALE;
+  const smoothedTheta = smoothedThumbBoundaryTheta(theta, yMm, averageRadiusMm);
+  return pointOnBrace(smoothedTheta, yMm, insetMm);
+}
+
 function thumbReliefProfile() {
   resetDerivedCache();
   if (derivedCache.thumbRelief) {
@@ -321,12 +360,14 @@ function thumbReliefProfile() {
   const splitHalf = splitThetaHalf();
   const side = state.hand === "left" ? -1 : 1;
   const sideSplit = side * (Math.PI / 2 - splitHalf);
-  const thumbY = state.wristMetaLength - state.metaToThumbLength;
-  const halfHeight = state.thumbHeight * 0.5;
-  const topClearance = Math.max(24, state.velcroThickness * 2 + 16);
-  const topY = clamp(thumbY + halfHeight, -state.foreWristLength + 16, state.wristMetaLength - topClearance);
-  const bottomY = clamp(thumbY - halfHeight, -state.foreWristLength + 14, state.wristMetaLength - 24);
-  const palmarStart = -side * clamp((state.thumbWidth / state.metacarpalWidth - 0.48) * 0.46, 0.08, 0.24);
+  const topClearance = 8;
+  const maxTopY = state.wristMetaLength - topClearance;
+  const bottomY = clamp(state.wristMetaLength - state.metaToThumbLength, -state.foreWristLength + 14, maxTopY - 12);
+  const topY = clamp(bottomY + state.thumbHeight, bottomY, maxTopY);
+  const section = sectionAt((bottomY + topY) * 0.5, 0);
+  const averageRadiusMm = ((section.rx + section.rz) / 2) / SCALE;
+  const openingTheta = clamp((state.thumbWidth / Math.max(averageRadiusMm, 1)) * 0.62, 0.38, 1.38);
+  const palmarStart = sideSplit - side * openingTheta;
 
   derivedCache.thumbRelief = { side, sideSplit, topY, bottomY, palmarStart };
   return derivedCache.thumbRelief;
@@ -364,17 +405,19 @@ function strapSlotSpecs() {
   const slitThetaHalf = 0.055 + state.velcroThickness * 0.004;
   const regularHalfHeight = 13 + state.velcroThickness * 0.8;
   const regularTopHalfHeight = regularHalfHeight * 0.72;
-  const thumbTopClearance = 5;
+  const thumbTopClearance = 2;
   const thumbTopAvailable = yMax - topY - thumbTopClearance;
-  const thumbTopHalfHeight = clamp((thumbTopAvailable - 4) * 0.5, 5, regularTopHalfHeight);
-  const thumbSideTopY = topY + thumbTopClearance + thumbTopHalfHeight;
+  const thumbTopHalfHeight = thumbTopAvailable >= regularTopHalfHeight * 2
+    ? regularTopHalfHeight
+    : clamp((thumbTopAvailable - 1) * 0.5, 4, regularTopHalfHeight);
+  const thumbSideTopY = Math.min(topYRegular, topY + thumbTopClearance + thumbTopHalfHeight);
   const specs = [
     { theta: nonThumbTheta, y: topYRegular, halfTheta: slitThetaHalf, halfHeight: regularTopHalfHeight },
     ...nonPalmarThetas.map((theta) => ({ theta, y: topYRegular, halfTheta: slitThetaHalf, halfHeight: regularTopHalfHeight })),
     ...allSlotThetas.flatMap((theta) => [middleY, lowerY].map((y) => ({ theta, y, halfTheta: slitThetaHalf, halfHeight: regularHalfHeight })))
   ];
 
-  if (thumbTopAvailable >= 14) {
+  if (thumbTopAvailable >= 9) {
     specs.push({ theta: thumbTheta, y: thumbSideTopY, halfTheta: slitThetaHalf, halfHeight: thumbTopHalfHeight });
   }
 
@@ -419,9 +462,8 @@ function splitThetaHalf() {
   return clamp(splitGapMm / Math.max(splitRadius, 1), 0.18, 0.34);
 }
 
-function buildBraceMesh(thetaMin, thetaMax) {
-  const thetaSegments = 240;
-  const ySegments = 420;
+function buildBraceMesh(thetaMin, thetaMax, resolution = meshResolution.preview) {
+  const { thetaSegments, ySegments } = resolution;
   const yMin = -state.foreWristLength;
   const yMax = state.wristMetaLength;
   const positions = [];
@@ -439,8 +481,8 @@ function buildBraceMesh(thetaMin, thetaMax) {
       const theta = thetaMin + (it / thetaSegments) * (thetaMax - thetaMin);
       const outerInset = exposedEdgeInset(theta, yMm, thetaMin, thetaMax, yMin, yMax);
       const innerInset = state.thick - outerInset;
-      const outer = pointOnBrace(theta, yMm, outerInset);
-      const inner = pointOnBrace(theta, yMm, innerInset);
+      const outer = pointOnSmoothedBrace(theta, yMm, outerInset);
+      const inner = pointOnSmoothedBrace(theta, yMm, innerInset);
       const normal = new THREE.Vector3(Math.sin(theta), 0, Math.cos(theta)).normalize();
 
       outerIndex[iy][it] = positions.length / 3;
@@ -508,17 +550,25 @@ function buildBraceMesh(thetaMin, thetaMax) {
 
       const leftOpen = isCurrentCutout && (it === 0 || cutoutGrid[iy][it - 1] === 0);
       const rightOpen = isCurrentCutout && (it === thetaSegments - 1 || cutoutGrid[iy][it + 1] === 0);
-      if (leftOpen || rightOpen) {
-        const itEdge = leftOpen ? it : it + 1;
-        const thetaEdge = thetaMin + (itEdge / thetaSegments) * (thetaMax - thetaMin);
-        if (isCurrentThumb && angleDistance(thetaEdge, thumbReliefProfile().sideSplit) < 0.08) {
-          continue;
-        }
+      const addCutoutThetaCap = (itEdge) => {
         const o1 = outerIndex[iy][itEdge];
         const o2 = outerIndex[iy + 1][itEdge];
         const i1 = innerIndex[iy][itEdge];
         const i2 = innerIndex[iy + 1][itEdge];
         indices.push(o1, i1, o2, i1, i2, o2);
+      };
+
+      if (leftOpen) {
+        const thetaEdge = thetaMin + (it / thetaSegments) * (thetaMax - thetaMin);
+        if (!isCurrentThumb || angleDistance(thetaEdge, thumbReliefProfile().sideSplit) >= 0.08) {
+          addCutoutThetaCap(it);
+        }
+      }
+      if (rightOpen) {
+        const thetaEdge = thetaMin + ((it + 1) / thetaSegments) * (thetaMax - thetaMin);
+        if (!isCurrentThumb || angleDistance(thetaEdge, thumbReliefProfile().sideSplit) >= 0.08) {
+          addCutoutThetaCap(it + 1);
+        }
       }
 
       if (isCurrentCutout) {
@@ -595,6 +645,16 @@ function addCapsule(group, radius, length, position, rotation, material) {
   return mesh;
 }
 
+function addEllipsoid(group, position, scale, material) {
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 18), material);
+  mesh.position.set(position.x, position.y, position.z);
+  mesh.scale.set(scale.x, scale.y, scale.z);
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  group.add(mesh);
+  return mesh;
+}
+
 function addBox(group, width, height, depth, position, material) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
   mesh.position.set(position.x, position.y, position.z);
@@ -651,41 +711,116 @@ function estimatePrint() {
     }
   });
 
-  const shellLength = state.foreWristLength + state.wristMetaLength;
-  const layerCount = Math.ceil(shellLength / slicer.layerHeight);
-  const extrusionLength = volumeMm3 / (slicer.lineWidth * slicer.layerHeight);
-  const extrusionSeconds = extrusionLength / slicer.printSpeed;
-  const layerSeconds = layerCount * slicer.layerChangeSeconds;
-  const totalSeconds = (extrusionSeconds + layerSeconds) * slicer.travelOverhead;
-  const grams = (volumeMm3 / 1000) * slicer.filamentDensity;
+  const baselineVolumeMm3 = 56000;
+  const scale = clamp(volumeMm3 / baselineVolumeMm3, 0.86, 1.14);
+  const grams = 70 * scale;
+  const hours = 3.5 * scale;
 
   return {
     volumeMm3,
     grams,
-    hours: totalSeconds / 3600
+    hours
   };
 }
 
 function addHandGhost() {
-  const wristY = -state.foreWristLength * SCALE * 0.25;
-  const palmY = state.wristMetaLength * SCALE * 0.48;
-  addCapsule(modelGroup, state.wristWidth * SCALE * 0.22, state.foreWristLength * SCALE * 1.0, { x: 0, y: wristY, z: -0.25 }, { x: 0, y: 0, z: 0 }, materials.skin);
-  addCapsule(modelGroup, state.metacarpalWidth * SCALE * 0.22, 1.0, { x: 0, y: palmY, z: -0.18 }, { x: Math.PI / 2, y: 0, z: 0 }, materials.skin);
+  const group = new THREE.Group();
+  group.name = "ghost-hand-preview";
+  modelGroup.add(group);
+
+  const side = state.hand === "left" ? -1 : 1;
+  const inset = state.thick + 2;
+  const wrist = sectionAt(0, inset);
+  const palm = sectionAt(state.wristMetaLength * 0.68, inset);
+  const lower = sectionAt(-state.foreWristLength * 0.55, inset);
+  const palmY = state.wristMetaLength * SCALE * 0.52;
+  const wristY = -state.foreWristLength * SCALE * 0.26;
+  const lowerY = -state.foreWristLength * SCALE * 0.66;
+  const topY = state.wristMetaLength * SCALE;
+  const skinZ = -Math.min(wrist.rz, palm.rz) * 0.12;
+
+  addEllipsoid(group, { x: 0, y: palmY, z: skinZ }, {
+    x: Math.max(0.45, palm.rx * 0.72),
+    y: Math.max(1.05, state.wristMetaLength * SCALE * 0.46),
+    z: Math.max(0.22, palm.rz * 0.56)
+  }, materials.skin);
+
+  addEllipsoid(group, { x: 0, y: wristY, z: skinZ }, {
+    x: Math.max(0.36, wrist.rx * 0.62),
+    y: Math.max(1.2, state.foreWristLength * SCALE * 0.36),
+    z: Math.max(0.24, wrist.rz * 0.56)
+  }, materials.skin);
+
+  addEllipsoid(group, { x: 0, y: lowerY, z: skinZ }, {
+    x: Math.max(0.4, lower.rx * 0.58),
+    y: Math.max(0.8, state.foreWristLength * SCALE * 0.25),
+    z: Math.max(0.24, lower.rz * 0.52)
+  }, materials.skin);
+
+  const fingerBaseY = topY + 0.28;
+  const fingerZ = skinZ + Math.max(0.02, palm.rz * 0.08);
+  const fingerSpacing = state.metacarpalWidth * SCALE * 0.145;
+  const fingerRadius = clamp(state.metacarpalWidth * SCALE * 0.035, 0.13, 0.22);
+  const fingers = [
+    { x: -1.45 * fingerSpacing, length: 1.55, radius: fingerRadius * 0.86 },
+    { x: -0.48 * fingerSpacing, length: 1.92, radius: fingerRadius },
+    { x: 0.48 * fingerSpacing, length: 1.8, radius: fingerRadius * 0.96 },
+    { x: 1.36 * fingerSpacing, length: 1.42, radius: fingerRadius * 0.78 }
+  ];
+
+  fingers.forEach((finger) => {
+    addCapsule(
+      group,
+      finger.radius,
+      finger.length,
+      { x: finger.x, y: fingerBaseY + finger.length * 0.5, z: fingerZ },
+      { x: 0, y: 0, z: 0 },
+      materials.skin
+    );
+  });
+
+  const { bottomY, topY: thumbTopY, palmarStart, sideSplit } = thumbReliefProfile();
+  const thumbMidY = ((bottomY + thumbTopY) * 0.5) * SCALE;
+  const thumbLength = clamp(state.thumbWidth * SCALE * 0.9, 0.95, 1.75);
+  const thumbRadius = clamp(state.thumbWidth * SCALE * 0.085, 0.16, 0.27);
+  const thumbTheta = (palmarStart + sideSplit) * 0.5;
+  const thumbBase = pointOnBrace(thumbTheta, (bottomY + thumbTopY) * 0.5, inset + 3);
+  const thumbAngle = side * -0.95;
+
+  addCapsule(
+    group,
+    thumbRadius,
+    thumbLength,
+    {
+      x: thumbBase.x + side * thumbLength * 0.32,
+      y: thumbMidY + thumbLength * 0.12,
+      z: thumbBase.z + 0.08
+    },
+    { x: 0.2, y: 0, z: thumbAngle },
+    materials.skin
+  );
 }
 
-function buildModel(values) {
+function buildModel() {
   clearModel();
+  addHandGhost();
+  buildShellMeshes(meshResolution.preview).forEach((shell) => {
+    modelGroup.add(shell);
+  });
+}
+
+function buildShellMeshes(resolution) {
   const splitHalf = splitThetaHalf();
   const panels = [
     [-Math.PI / 2 + splitHalf, Math.PI / 2 - splitHalf],
     [Math.PI / 2 + splitHalf, Math.PI * 1.5 - splitHalf]
   ];
 
-  panels.forEach(([thetaMin, thetaMax]) => {
-    const shell = new THREE.Mesh(buildBraceMesh(thetaMin, thetaMax), materials.shell);
+  return panels.map(([thetaMin, thetaMax]) => {
+    const shell = new THREE.Mesh(buildBraceMesh(thetaMin, thetaMax, resolution), materials.shell);
     shell.castShadow = true;
     shell.receiveShadow = true;
-    modelGroup.add(shell);
+    return shell;
   });
 }
 
@@ -697,42 +832,226 @@ function formatHours(hours) {
 }
 
 async function exportStl() {
-  const exportGroup = new THREE.Group();
-
-  modelGroup.updateMatrixWorld(true);
-  modelGroup.traverse((object) => {
-    if (object.isMesh && object.material === materials.shell) {
-      const mesh = new THREE.Mesh(object.geometry.clone(), object.material);
-      mesh.matrix.copy(object.matrixWorld);
-      mesh.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
-      mesh.position.multiplyScalar(1 / SCALE);
-      mesh.scale.multiplyScalar(1 / SCALE);
-      exportGroup.add(mesh);
-    }
-  });
-
-  exportGroup.updateMatrixWorld(true);
+  const exportGroup = buildExportGroup();
   const { STLExporter } = await import("three/addons/exporters/STLExporter.js");
   const exporter = new STLExporter();
   const stl = exporter.parse(exportGroup, { binary: false });
-  const blob = new Blob([stl], { type: "model/stl" });
+  downloadBlob(stl, `brace-${state.hand}-thumb-${Math.round(state.thumbWidth)}mm.stl`, "model/stl");
+}
+
+async function export3mf() {
+  const exportGroup = buildExportGroup();
+  const files = build3mfFiles(exportGroup);
+  const archive = createZip(files);
+  downloadBlob(archive, `brace-${state.hand}-thumb-${Math.round(state.thumbWidth)}mm.3mf`, "model/3mf");
+}
+
+function buildExportGroup() {
+  const exportGroup = new THREE.Group();
+
+  buildShellMeshes(meshResolution.export).forEach((mesh) => {
+    mesh.scale.multiplyScalar(1 / SCALE);
+    exportGroup.add(mesh);
+  });
+
+  orientExportGroupForPrinting(exportGroup);
+  lowerExportGroupSlightlyIntoBed(exportGroup);
+  exportGroup.updateMatrixWorld(true);
+
+  return exportGroup;
+}
+
+function downloadBlob(data, filename, type) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `brace-${state.hand}-thumb-${Math.round(state.thumbWidth)}mm.stl`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
 }
 
-function renderSpecs(values, printEstimate) {
-  output.printTime.textContent = formatHours(printEstimate.hours);
-  if (output.printVolume) {
-    output.printVolume.textContent = `${(printEstimate.volumeMm3 / 1000).toFixed(1)} cm3`;
+function orientExportGroupForPrinting(group) {
+  group.rotation.x = Math.PI / 2;
+  group.updateMatrixWorld(true);
+}
+
+function lowerExportGroupSlightlyIntoBed(group) {
+  const bedIntersectionMm = 0.1;
+  group.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(group);
+  group.position.z -= bounds.min.z + bedIntersectionMm;
+}
+
+function build3mfFiles(group) {
+  const modelXml = build3mfModelXml(group);
+  return [
+    {
+      name: "[Content_Types].xml",
+      data: stringToBytes(`<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>
+</Types>`)
+    },
+    {
+      name: "_rels/.rels",
+      data: stringToBytes(`<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
+</Relationships>`)
+    },
+    {
+      name: "3D/3dmodel.model",
+      data: stringToBytes(modelXml)
+    }
+  ];
+}
+
+function build3mfModelXml(group) {
+  group.updateMatrixWorld(true);
+  let objectId = 1;
+  const resources = [];
+  const buildItems = [];
+
+  group.children.forEach((mesh) => {
+    if (!mesh.isMesh) {
+      return;
+    }
+
+    const geometry = mesh.geometry;
+    const position = geometry.attributes.position;
+    const index = geometry.index;
+    const vertices = [];
+    const triangles = [];
+    const matrix = mesh.matrixWorld;
+    const point = new THREE.Vector3();
+
+    for (let i = 0; i < position.count; i += 1) {
+      point.fromBufferAttribute(position, i).applyMatrix4(matrix);
+      vertices.push(`<vertex x="${format3mfNumber(point.x)}" y="${format3mfNumber(point.y)}" z="${format3mfNumber(point.z)}"/>`);
+    }
+
+    if (index) {
+      for (let i = 0; i < index.count; i += 3) {
+        triangles.push(`<triangle v1="${index.getX(i)}" v2="${index.getX(i + 1)}" v3="${index.getX(i + 2)}"/>`);
+      }
+    } else {
+      for (let i = 0; i < position.count; i += 3) {
+        triangles.push(`<triangle v1="${i}" v2="${i + 1}" v3="${i + 2}"/>`);
+      }
+    }
+
+    resources.push(`<object id="${objectId}" type="model">
+  <mesh>
+    <vertices>
+      ${vertices.join("\n      ")}
+    </vertices>
+    <triangles>
+      ${triangles.join("\n      ")}
+    </triangles>
+  </mesh>
+</object>`);
+    buildItems.push(`<item objectid="${objectId}"/>`);
+    objectId += 1;
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+  <resources>
+    ${resources.join("\n    ")}
+  </resources>
+  <build>
+    ${buildItems.join("\n    ")}
+  </build>
+</model>`;
+}
+
+function format3mfNumber(value) {
+  return Number(value.toFixed(5)).toString();
+}
+
+function stringToBytes(value) {
+  return new TextEncoder().encode(value);
+}
+
+function createZip(files) {
+  const encoder = new TextEncoder();
+  const chunks = [];
+  const centralDirectory = [];
+  let offset = 0;
+
+  files.forEach((file) => {
+    const nameBytes = encoder.encode(file.name);
+    const data = file.data;
+    const crc = crc32(data);
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const view = new DataView(localHeader.buffer);
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 0, true);
+    view.setUint16(8, 0, true);
+    view.setUint32(14, crc, true);
+    view.setUint32(18, data.length, true);
+    view.setUint32(22, data.length, true);
+    view.setUint16(26, nameBytes.length, true);
+    localHeader.set(nameBytes, 30);
+
+    chunks.push(localHeader, data);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const centralView = new DataView(centralHeader.buffer);
+    centralView.setUint32(0, 0x02014b50, true);
+    centralView.setUint16(4, 20, true);
+    centralView.setUint16(6, 20, true);
+    centralView.setUint16(8, 0, true);
+    centralView.setUint16(10, 0, true);
+    centralView.setUint32(16, crc, true);
+    centralView.setUint32(20, data.length, true);
+    centralView.setUint32(24, data.length, true);
+    centralView.setUint16(28, nameBytes.length, true);
+    centralView.setUint32(42, offset, true);
+    centralHeader.set(nameBytes, 46);
+    centralDirectory.push(centralHeader);
+
+    offset += localHeader.length + data.length;
+  });
+
+  const centralOffset = offset;
+  centralDirectory.forEach((entry) => {
+    chunks.push(entry);
+    offset += entry.length;
+  });
+
+  const endRecord = new Uint8Array(22);
+  const endView = new DataView(endRecord.buffer);
+  endView.setUint32(0, 0x06054b50, true);
+  endView.setUint16(8, files.length, true);
+  endView.setUint16(10, files.length, true);
+  endView.setUint32(12, offset - centralOffset, true);
+  endView.setUint32(16, centralOffset, true);
+  chunks.push(endRecord);
+
+  return new Blob(chunks, { type: "model/3mf" });
+}
+
+function crc32(data) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < data.length; i += 1) {
+    crc ^= data[i];
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
   }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function renderSpecs(values, printEstimate) {
+  output.printTime.textContent = `~${formatHours(printEstimate.hours)}`;
   if (output.filamentUse) {
-    output.filamentUse.textContent = `${printEstimate.grams.toFixed(0)} g`;
+    output.filamentUse.textContent = `~${printEstimate.grams.toFixed(0)} g`;
   }
   if (output.ventLabel) {
     output.ventLabel.textContent = state.vents;
@@ -752,7 +1071,6 @@ function renderSpecs(values, printEstimate) {
   if (output.straps) {
     output.straps.textContent = values.straps;
   }
-  output.notes.textContent = values.profile.note;
 }
 
 function setCamera(mode = state.camera) {
@@ -763,7 +1081,7 @@ function setCamera(mode = state.camera) {
   } else if (mode === "side") {
     camera.position.set(15, -12, 8);
   } else {
-    camera.position.set(10, -17, 12);
+    camera.position.set(8, -12, 19);
   }
   controls.target.set(0, targetY, 0);
   controls.update();
@@ -785,7 +1103,7 @@ function render() {
   }
   lastRenderKey = renderKey;
   const values = spec();
-  buildModel(values);
+  buildModel();
   const printEstimate = estimatePrint();
   renderSpecs(values, printEstimate);
 }
@@ -846,6 +1164,10 @@ if (resetButton) {
 
 if (output.exportStl) {
   output.exportStl.addEventListener("click", exportStl);
+}
+
+if (output.export3mf) {
+  output.export3mf.addEventListener("click", export3mf);
 }
 
 window.addEventListener("resize", resizeRenderer);

@@ -1,85 +1,242 @@
-# Brace Website And Model Notes
+# CuffForm Studio Project Notes
 
-This file records the current design intent for the brace website and procedural model. It is meant to help future work preserve the details that were worked out through screenshots, 3MF comparisons, and model fixes.
+This file records the current state of the brace website, model generator, decisions made during iteration, and known issues. It should be used as the reference before changing the model again.
 
-## Project Files
+## Current Site Structure
 
-- `index.html`: static website markup, controls, measurement labels, range indicators, info bubbles, spec panel, and STL export button.
-- `styles.css`: website layout and styling.
-- `app.js`: Three.js scene, procedural brace mesh, parameter handling, thumb cutout, Velcro slit cutouts, camera controls, print estimate display, and STL export.
-- Reference 3MF file used during design: `C:\Users\aaron\OneDrive - Rutgers University\3D Printing\3MF\Brace v7 - 2 parts v7.3MF`.
-- Extracted 3MF thumbnail folder: `tmp_3mf_extract`.
+- `index.html`: landing page for **CuffForm Studio**.
+- `configurator.html`: the actual brace renderer/configurator.
+- `printing.html`: printing instructions and general slicer guidance.
+- `styles.css`: shared styling for the landing page and configurator.
+- `app.js`: Three.js scene, procedural model generation, print estimate, STL/3MF export, controls, and render loop.
+- `README.md`: short project overview.
+- `PROJECT_NOTES.md`: this detailed implementation/history file.
 
-The site runs locally from the project folder with:
+Local server:
 
 ```powershell
 python -m http.server 8000 --bind localhost
 ```
 
-Then open:
+Pages:
 
 ```text
-http://localhost:8000
+http://localhost:8000/
+http://localhost:8000/configurator.html
+http://localhost:8000/printing.html
 ```
 
-## Website Behavior
+The current server was restarted successfully on May 16, 2026.
 
-- The page is a direct modeling tool, not a landing page.
-- The translucent hand model was removed from the viewport and should stay removed unless explicitly requested.
-- The old view reset `R` control was removed.
-- The UI uses human-readable parameter names:
-  - Forearm circumference
-  - Palm thickness
-  - Knuckle width
-  - Thumb opening width
-  - Thumb opening height
-  - Wrist thickness
-  - Wrist width
-  - Forearm length
-  - Palm length
-  - Thickness
-  - Thumb position
-  - Strap thickness
-- The controls show clear numeric ranges in the UI.
-- Info bubbles describe how to measure each parameter and what it changes in the model.
-- Info bubbles should open to the right and can overlay the render area if needed, because opening left caused them to go off-screen.
-- The spec section no longer shows "Medium fit" or "shell area".
-- The print time is currently a simple estimate from area and thickness, not a true slicer. A real slicer integration was discussed but not fully implemented.
-- STL export exists through Three.js `STLExporter`. The export should include only the brace shell meshes.
+## Naming
 
-## Parameter Ranges
+Current product/site name: **CuffForm Studio**.
 
-Current clamped ranges in `app.js` and shown in `index.html`:
+Names checked during the process:
+
+- `BraceFit` was already in use.
+- `BraceForge` was already in use.
+- `FormBrace` had existing search/trademark context.
+- `CuffForm Studio` did not show a direct exact-match product/site result in a quick search and fits the forearm cuff/brace configurator.
+
+## Landing Page
+
+The landing page is intentionally lightweight and does not load Three.js. This keeps the first page faster and avoids building the model until the user opens the configurator.
+
+Landing page behavior:
+
+- Top navigation has filled-button links for `Printing Instructions` and `Open configurator`.
+- Main hero also has an `Open configurator` link.
+- Main hero also links to `Printing instructions`.
+- The previous `PROJECT_NOTES.md` link was removed from the public landing page.
+- Hero uses the extracted 3MF thumbnail:
+
+```text
+tmp_3mf_extract/expanded/Metadata/thumbnail.png
+```
+
+Important landing page fixes:
+
+- A persistent top-right configurator button was added because the first version pushed the CTA below the visible fold.
+- The nav/hero spacing was adjusted so the site name and hero content do not overlap while scrolling or on shorter screens.
+- The landing nav is now static instead of sticky because the sticky version overlapped the hero text while scrolling.
+- Both top-right landing nav links should use the same filled `nav-config-link` visual treatment.
+
+## Printing Instructions Page
+
+The printing guide is at `printing.html`.
+
+Current design:
+
+- Uses the same constrained max-width rhythm as the landing page.
+- Top navigation is a contained white bar with border and shadow so it does not visually overlay page content.
+- Main content is wrapped in `info-content`.
+- Hero content is inside a white panel with a compact quick-summary panel for:
+  - Orientation
+  - Layer Height
+  - Material
+- Instruction content is grouped into cards:
+  - Export
+  - Slicer Setup
+  - Suggested Settings
+  - Post-Print Check
+
+Links:
+
+- `Home` links to `index.html`.
+- `Open Configurator` links to `configurator.html`.
+- Configurator export note links to `printing.html`.
+
+## Configurator UI
+
+The configurator is at `configurator.html`.
+
+Current controls:
+
+- Forearm circumference
+- Palm thickness
+- Knuckle width
+- Thumb opening width
+- Thumb opening height
+- Wrist thickness
+- Wrist width
+- Forearm length
+- Palm length
+- Thumb position
+- Strap thickness
+- Hand side: left/right
+
+Removed controls:
+
+- Wall `Thickness` input was removed from the controls.
+- Thickness is locked at `3 mm` in `app.js`.
+- Number input spinner arrows were visually removed so fields are typed values rather than click-to-step controls.
+
+Current parameter ranges:
 
 | Parameter | Range |
 | --- | --- |
 | Forearm circumference | 130-260 mm |
 | Palm thickness | 18-50 mm |
 | Knuckle width | 65-120 mm |
-| Thumb opening width | 20-100 mm |
+| Thumb opening width | 20-60 mm |
 | Thumb opening height | 35-100 mm |
 | Wrist thickness | 30-75 mm |
 | Wrist width | 40-90 mm |
 | Forearm length | 70-160 mm |
 | Palm length | 55-110 mm |
-| Thickness | 1.5-6 mm |
-| Thumb position | 20-65 mm |
+| Thumb position | 20-100 mm |
 | Strap thickness | 2-8 mm |
 
-Important: `Forearm circumference` controls the bottom/forearm opening. It used to be called wrist circumference, but the user clarified it is the lower forearm area.
+Important: `Forearm circumference` controls the lower/forearm cuff. It is named this way because the width/thickness version made the model look abnormal and was reverted.
+
+The configurator header includes a `Home` link back to `index.html`.
+
+Measurement controls are grouped into expandable sections:
+
+- Forearm
+- Wrist
+- Hand
+- Thumb
+- Straps
+
+The measurement groups are collapsed by default using `<details class="control-group">`.
+
+Group styling:
+
+- Squircle-style rounded borders.
+- Closed state has a compact `+` indicator.
+- Open state has a white background, border highlight, subtle shadow, and `-` indicator.
+- `control-group-body` animates the open/closed transition.
+
+The `Thumb` section contains:
+
+- Thumb opening width
+- Thumb opening height
+- Thumb position
+
+## Generated Spec Panel
+
+The right-side generated spec panel was simplified.
+
+Removed because they repeat parameters already shown on the left:
+
+- Shell length
+- Forearm opening
+- Metacarpal opening
+- Thickness
+- Strap count
+
+Current generated outputs:
+
+- Estimated Print Time
+- Estimated Filament
+
+Removed outputs:
+
+- Model volume
+
+The old top metric strip was removed. Print time now lives in the right-side generated spec panel with filament.
+
+## Print Time And Filament
+
+The app shows rough display estimates, not a true slicer result.
+
+Current display behavior:
+
+- Print time is centered around `~3 hr 30 min`.
+- Filament is centered around `~70 g`.
+- Both vary slightly with generated mesh volume using a clamped scale.
+- Values are prefixed with `~` to communicate that they are estimates.
+
+Current estimator constants are still present in `app.js`:
+
+- `layerHeight: 0.2`
+- `lineWidth: 0.45`
+- `printSpeed: 45`
+- `travelOverhead: 1.35`
+- `layerChangeSeconds: 2.2`
+- `filamentDensity: 1.24`
+
+This is not a full slicer. Orca/Bambu/Prusa slicers may report different times and filament use.
 
 ## Model Structure
 
-- The model is generated procedurally in `app.js` with Three.js.
-- The brace is split into two shell panels:
-  - One panel roughly covers the palmar side.
-  - One panel roughly covers the non-palmar side.
-- Geometry is built in `buildBraceMesh(thetaMin, thetaMax)`.
-- The brace uses an outer surface and inner surface based on the wall thickness.
-- `SCALE = 0.05`; model parameters are in millimeters but scene geometry is scaled.
-- `sectionAt(yMm, insetMm)` defines the changing cross-section from forearm, through wrist, to palm.
-- `pointOnBrace(theta, yMm, insetMm)` maps angle and length position to a point on the brace.
-- Left/right hand mode should mirror the thumb opening without deleting the upper half of the non-palmar side.
+The model is generated procedurally in `app.js`.
+
+Core functions:
+
+- `sectionAt(yMm, insetMm)`: cross-section shape along forearm/wrist/palm.
+- `pointOnBrace(theta, yMm, insetMm)`: maps polar brace coordinates to 3D points.
+- `buildBraceMesh(thetaMin, thetaMax)`: builds each brace panel.
+- `thumbReliefProfile()`: thumb opening profile data.
+- `isThumbReliefCutout(theta, yMm)`: thumb opening cutout.
+- `strapSlotSpecs()`: Velcro slot definitions.
+- `isStrapSlot(theta, yMm)`: Velcro slot test.
+- `angleDistance(a, b)`: required for wrapped angle comparisons.
+
+Current mesh resolution:
+
+- Preview: `thetaSegments = 240`, `ySegments = 420`
+- STL export: `thetaSegments = 320`, `ySegments = 560`
+
+The preview resolution is kept lower for browser responsiveness. STL and 3MF export rebuild shell meshes at higher resolution so downloaded files are smoother than the live renderer without making the renderer too heavy.
+
+## Fillets
+
+Current fillet approach:
+
+- No added tube/revolve geometry.
+- No added Velcro-slot fillets.
+- Fillets are made by moving shell vertices inward near exposed edges.
+- Inner shell surface mirrors the same rounding.
+- Radius is based on locked wall thickness:
+
+```text
+state.thick * 0.5
+```
+
+This was the approach the user liked. Do not go back to tube-based fillet geometry; it looked like raised hollow strips rather than true fillets.
 
 ## Thumb Opening
 
@@ -87,138 +244,172 @@ The thumb opening was the most sensitive part of the model.
 
 Design intent:
 
-- The thumb opening should match the reference 3MF style.
-- The thumb cutout should be wide and deep enough for the thumb to slide through.
-- The thumb cutout should not leave a thin random strip along the cutout edge.
-- The bottom of the thumb opening should be rounded/filleted visually by the generated curve.
-- The thumb opening must not climb so high that it cuts off the upper thumb-side Velcro slit.
+- Match the reference 3MF style.
+- Wide/deep enough for the thumb to slide through.
+- No random thin strip along the thumb-side cutout.
+- Smooth/filleted edge around the thumb opening.
+- Do not let the thumb opening eat into the upper thumb-side Velcro slit.
 
-Current implementation:
+Important implementation details:
 
-- `thumbReliefProfile()` computes:
-  - hand side
-  - side split angle
-  - top and bottom Y of the thumb opening
-  - palmar start angle
-- `isThumbReliefCutout(theta, yMm)` defines the actual thumb cutout.
-- The top of the thumb opening is clamped with a clearance:
-  - `topClearance = Math.max(24, state.velcroThickness * 2 + 16)`
-  - this prevents the thumb opening from eating into the upper strap slit.
+- `thumbReliefProfile()` clamps the top of the thumb opening using:
 
-Important fix to preserve:
+```js
+const topClearance = 8;
+```
 
-- A random thin strip near the thumb cutout kept appearing.
-- The successful fix was to suppress side-wall faces only along the thumb-side split edge of the thumb relief cutout, while keeping the rest of the cutout capped.
-- In `buildBraceMesh`, side-wall caps are skipped only when:
-  - the current cutout is the thumb relief cutout, and
-  - the edge is close to `thumbReliefProfile().sideSplit`.
-- Do not go back to skipping all thumb relief side walls, because that makes other parts look hollow.
+- `Thumb position` defines the bottom of the thumb opening. Changing `Thumb opening height` grows the cutout upward from that bottom point instead of moving the bottom edge.
+- The thumb opening now gets priority over the upper thumb-side strap. Top clearance is intentionally small so height values up to `100 mm` visibly affect the cutout; the dynamic top thumb-side strap disappears when there is not enough room.
+- The dynamic top thumb-side strap should not shrink too early. It currently keeps only `2 mm` clearance from the thumb opening and stays full height until the available space is less than a full regular top slot.
+- `Thumb opening width` currently has a UI/model range of `20-60 mm`; wider ranges looked unreliable.
+- `Thumb opening width` is converted to an angular span using the local brace radius around the thumb opening. It should behave like a measured width instead of the old narrow width/metacarpal ratio.
+- The successful thin-strip fix was to skip side-wall faces only near `thumbReliefProfile().sideSplit`, not around the whole thumb cutout.
+- Do not add a seam guard to `isThumbReliefCutout()` near `sideSplit`. That creates a visible vertical strip of plastic through the thumb opening.
+- Current strip-removal rule in `buildBraceMesh()`: when adding theta-side caps for thumb cutout cells, skip only the cap edge whose angle is within `0.08` radians of `thumbReliefProfile().sideSplit`; still cap the other exposed side of the cell if it exists.
+- The thumb opening roughness was improved by increasing mesh resolution and adding thumb-edge distance into the fillet inset calculation.
+- `thumbReliefCurveTheta()` uses eased rounding near the lower thumb transition so the thumb corner is not sharp.
+- `distanceToThumbReliefEdge()` uses a slightly larger thumb-edge fillet radius than the general edge radius to soften the thumb opening.
+- `smoothedThumbBoundaryTheta()` nudges vertices near the thumb cutout boundary toward the smooth relief curve to reduce serrated/stair-stepped finish along the thumb opening.
+
+Do not remove this thumb-strip fix.
 
 ## Velcro Slits
 
-The brace needs multiple Velcro slit cutouts. They are structural slots, not decorative marks.
-
 Design intent:
 
-- Slits must exist on both brace halves.
-- Slits must exist on both side edges where appropriate.
-- Long single slits are avoided because they may print poorly.
-- Instead, there should be three separated cutouts where possible:
-  - smaller top slit
-  - middle slit
-  - lower/bottom slit
+- Slits must be on both brace halves and both side edges where appropriate.
+- Long continuous slits were avoided because they may print poorly.
+- There should be separated cutouts:
+  - top
+  - middle
+  - lower/bottom
+
+Current layout:
+
 - Non-palmar side:
-  - top, middle, and bottom slits on both side edges
-  - symmetrical on both edges
+  - top, middle, and bottom slits on both side edges.
 - Palmar side:
-  - middle and bottom slits on both side edges
-  - top regular slit on the non-thumb side
-  - top thumb-side slit must fit between the brace top and thumb cutout
-  - top thumb-side slit dynamically shortens or disappears if there is not enough space
+  - middle and bottom slits on both side edges.
+  - regular top slit on the non-thumb side.
+  - dynamic smaller top slit on the thumb side when space permits.
 
-Current implementation:
+Current slot angle groups:
 
-- `isStrapSlot(theta, yMm)` defines all Velcro slots.
-- Palmar slit angles:
-  - `-0.72`
-  - `0.72`
-- Non-palmar slit angles:
-  - `-2.48`
-  - `2.48`
-- Middle and lower slit Y positions:
-  - `-state.foreWristLength * 0.38`
-  - `-state.foreWristLength * 0.78`
-- Top regular slit position:
-  - `state.wristMetaLength - 18`
-- Top thumb-side slit:
-  - based on the current thumb cutout top
-  - keeps `thumbTopClearance = 5`
-  - only appears if there is at least 14 mm of available space
+- Palmar: `-0.72`, `0.72`
+- Non-palmar: `-2.48`, `2.48`
 
-Important fix to preserve:
+Important fix:
 
-- Missing slits on one side were caused by angle wraparound. For example, `-2.48` radians and its equivalent positive wrapped angle need to match the same physical side of the brace.
-- `angleDistance(a, b)` handles wraparound and must be used for slot-angle comparisons.
+- Use `angleDistance(a, b)` for slot angle comparisons.
+- Direct `Math.abs(theta - slotTheta)` caused missing slots because wrapped angles did not match the second panel.
 
-## Hollow Areas And Cutout Caps
+## Slicer / Orca Issue
 
-The brace should not look hollow around slot or thumb cutout boundaries.
+Current known issue:
 
-Current implementation:
+- Orca Slicer has reported empty internals / hollow behavior around Velcro cutouts.
+- The most recent change removed separate overlay slot-wall geometry and reconnected cutout caps into the main grid again.
+- This should be more slicer-friendly, but it has not yet been confirmed by exporting a fresh STL and checking it in Orca.
+- The slicer error `one object has empty initial layer and cant be printed. please cut the bottom or enable supports` means Orca/Bambu did not find printable extrusion on the first layer for at least one object.
+- User confirmed the actual issue was the exported model sitting very slightly above the slicer build plate. Manually lowering it from about `90.0` to `89.9` fixed slicing.
+- Current export fix: keep both brace halves in one STL, rotate the export upright for printing, then lower the whole exported group so its minimum `Z` intersects the bed by `0.1 mm`.
+- Do not reintroduce the seam-guard thumb fix that left a visible strip of plastic in the thumb opening.
 
-- The main mesh has outer and inner faces.
-- Top and bottom brace openings are capped.
-- Split seams are capped unless the seam is inside a cutout or thumb split clearance.
-- Cutout side boundaries are capped.
-- Cutout top and bottom boundaries are capped.
+If Orca still reports empty internals:
 
-Important details:
+- Inspect the STL near Velcro cutouts for non-manifold edges.
+- Focus on the cap generation in `buildBraceMesh`.
+- Velcro slot walls must be connected to the main mesh, not separate floating surfaces.
+- Avoid removing slot caps entirely, because that creates open walls through the shell.
+- Avoid adding separate tube/wall pieces unless they are welded into the main mesh.
 
-- Strap slots need caps on all four sides through the wall.
-- Thumb cutout boundaries also need caps, except for the specific side-wall suppression used to remove the random strip near the thumb split.
-- If future edits create a dark open-looking cavity around a cutout, check the cap generation in `buildBraceMesh`.
+This is the main current technical risk.
 
 ## Right And Left Hand Behavior
 
-- Left/right hand mode must mirror the thumb opening.
-- It should not simply swap labels or break one side of the model.
-- A previous bug caused the top half of the non-palmar side to disappear in right-hand mode. The fix was to keep cutout and seam logic symmetric and angle-aware.
-- Slit detection must use wrapped angular distance so both hand modes keep matching slits.
+- Left/right hand mode mirrors the thumb opening.
+- It must not simply swap labels.
+- A previous bug made the top half of the non-palmar side disappear in right-hand mode.
+- The current angle-aware cutout logic fixed that.
+- Any future slot or thumb logic must be tested in both left and right hand modes.
 
-## Export
+## STL And 3MF Export
 
-- The export button uses `exportStl()` in `app.js`.
-- It clones shell meshes from `modelGroup`, scales them back from scene units to millimeters, and exports an STL.
-- The exported filename is currently:
+`exportStl()`:
+
+- Rebuilds shell meshes at export resolution and scales them back from preview scene units to millimeters.
+- Keeps both brace halves in one STL file.
+- `orientExportGroupForPrinting()` rotates the export `Math.PI / 2` around X so the brace length axis becomes slicer vertical `Z`.
+- `lowerExportGroupSlightlyIntoBed()` lowers the exported group so the lowest point is `0.1 mm` below the slicer bed.
+- Exports an ASCII STL using Three.js `STLExporter`.
+
+`export3mf()`:
+
+- Uses the same export group as STL.
+- Writes a minimal 3MF package with uncompressed ZIP entries:
+  - `[Content_Types].xml`
+  - `_rels/.rels`
+  - `3D/3dmodel.model`
+- Uses a small built-in ZIP writer:
+  - `createZip(files)`
+  - `crc32(data)`
+
+Configurator export UI:
+
+- `Export STL`
+- `Export 3MF`
+- Export note says the model is pre-oriented upright and suggests lowering by `.1 mm` if a slicer reports an empty initial layer.
+- Export note links to `printing.html`.
+
+Filename:
 
 ```text
 brace-{hand}-thumb-{thumbWidth}mm.stl
+brace-{hand}-thumb-{thumbWidth}mm.3mf
 ```
 
-The STL export should not include the removed translucent hand model.
+A translucent ghost hand preview was re-added by user request. It is built from simple measurement-driven preview meshes only, includes palm/wrist/forearm, thumb, and four fingers, and is not included in STL/3MF export.
 
-## Print Time
+## Performance
 
-- The website shows an estimated print time.
-- A true slicer integration was requested, but the current app does not include a real slicer.
-- Earlier attempts to make the print estimate more complex caused rendering issues, so the stable simple estimator was kept.
-- If this is revisited, use a small, isolated estimator that cannot break startup rendering.
+Performance was improved by:
 
-## Things To Be Careful With
+- Debouncing input rebuilds.
+- Skipping duplicate renders when values have not changed.
+- Caching derived thumb/slot calculations.
+- Precomputing cutout grids per panel during mesh generation.
+- Removing number spinner buttons to reduce accidental rapid changes.
+- Keeping preview resolution lower than export resolution.
 
-- Do not re-add the translucent hand unless specifically asked.
+Current model is still heavy because of the high mesh resolution needed for the smooth thumb opening.
+
+## Things To Avoid
+
+- Do not change the model unless explicitly requested.
+- Do not include the translucent ghost hand in STL/3MF export.
+- Do not re-add tube/revolve fillets.
+- Do not add fillets around Velcro slots.
 - Do not remove the thumb-strip fix.
-- Do not remove caps around cutouts; that makes the brace look hollow.
-- Do not use direct `Math.abs(theta - slotTheta)` for slit positions; use `angleDistance`.
-- Do not let the thumb opening consume the top thumb-side Velcro slit.
-- Do not make the palmar thumb-side top slit a full regular slot; it must adapt to the available space above the thumb opening.
-- Do not treat `Forearm circumference` as the wrist opening. It controls the bottom/forearm cuff.
-- Keep range labels and info bubbles visible and separated from inputs.
+- Do not replace forearm circumference with forearm width/thickness again unless the shape logic is redesigned.
+- Do not remove Velcro cutout caps without replacing them with slicer-valid solid wall geometry.
+- Do not put the project notes link back on the public landing page unless requested.
+- Do not make the printing instructions page edge-to-edge; keep it constrained like the landing page.
+- Do not make landing/printing nav sticky unless it has an opaque background and cannot overlap content.
 
-## Current Known Limitations
+## Current Stable State
 
-- The print time is an estimate, not a true slicer result.
-- The model is procedural and approximates the 3MF reference rather than importing/editing the 3MF directly.
-- There is no automated visual regression test for the brace yet.
-- Node is not available in the current environment, so JavaScript syntax checks through `node --check` could not be run.
+User-approved model state:
 
+- Forearm circumference restored.
+- Thickness locked at 3 mm.
+- Main and inside edge fillets look good.
+- Velcro floating strips were improved/removed visually.
+- Thumb cutout is much smoother after mesh resolution increase.
+- Landing page and configurator split works.
+- Configurator has a home link.
+- Printing instructions page exists and is linked from the landing page and configurator export note.
+- Export supports STL and 3MF.
+
+Current unresolved risk:
+
+- Orca Slicer may still see empty internals around Velcro cutouts until a fresh STL is exported and verified.
