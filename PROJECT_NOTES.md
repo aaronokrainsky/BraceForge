@@ -1,14 +1,15 @@
-# CuffForm Studio Project Notes
+# BraceForge Project Notes
 
 This file records the current state of the brace website, model generator, decisions made during iteration, and known issues. It should be used as the reference before changing the model again.
 
 ## Current Site Structure
 
-- `index.html`: landing page for **CuffForm Studio**.
+- `index.html`: landing page for **BraceForge**.
 - `configurator.html`: the actual brace renderer/configurator.
 - `printing.html`: printing instructions and general slicer guidance.
 - `styles.css`: shared styling for the landing page and configurator.
 - `app.js`: Three.js scene, procedural model generation, print estimate, STL/3MF export, controls, and render loop.
+- `assets/braceforge-logo.png`: user-provided BF logo used in page headers and the landing hero.
 - `README.md`: short project overview.
 - `PROJECT_NOTES.md`: this detailed implementation/history file.
 
@@ -30,26 +31,40 @@ The current server was restarted successfully on May 16, 2026.
 
 ## Naming
 
-Current product/site name: **CuffForm Studio**.
+Current product/site name: **BraceForge**.
 
-Names checked during the process:
+Naming note:
 
-- `BraceFit` was already in use.
-- `BraceForge` was already in use.
-- `FormBrace` had existing search/trademark context.
-- `CuffForm Studio` did not show a direct exact-match product/site result in a quick search and fits the forearm cuff/brace configurator.
+- On May 16, 2026, the user requested the name be changed to **BraceForge**.
+
+## Branding
+
+Current branding:
+
+- Primary color: deep green from the logo family.
+- Secondary color: metallic gold from the logo family.
+- The user-provided BF logo is used in the top-left header on public pages, in the configurator topbar, and as the single logo mark in the landing hero body.
+- Shared logo asset:
+
+```text
+assets/braceforge-logo.png
+```
 
 ## Landing Page
 
-The landing page is intentionally lightweight and does not load Three.js. This keeps the first page faster and avoids building the model until the user opens the configurator.
+The landing page now loads Three.js through `app.js` so the hero preview uses the same procedural model as the configurator.
 
 Landing page behavior:
 
-- Top navigation has filled-button links for `Printing Instructions` and `Open configurator`.
-- Main hero also has an `Open configurator` link.
-- Main hero also links to `Printing instructions`.
+- Top navigation has the BraceForge logo/name and filled-button links for `Printing Instructions` and `Open configurator`.
+- Main hero no longer has duplicated middle buttons for `Open configurator` or `Printing Instructions`; those actions live in the top navigation.
+- Main hero uses the same procedural brace renderer as the configurator by loading `app.js` with fixed hidden homepage inputs.
+- The separate `home-preview.js` mini renderer and 3MF homepage asset were removed so the homepage no longer uses a separate preview model.
+- The homepage preview sets `data-home-preview="true"` so `app.js` skips the translucent hand and Three.js grid only on the landing page.
+- The homepage preview also enables OrbitControls auto-rotate.
+- The Three.js ground sheet and CSS panel/background are removed for the homepage preview only; the configurator grid and ground stay unchanged.
 - The previous `PROJECT_NOTES.md` link was removed from the public landing page.
-- Hero uses the extracted 3MF thumbnail:
+- The previous static thumbnail was:
 
 ```text
 tmp_3mf_extract/expanded/Metadata/thumbnail.png
@@ -155,6 +170,12 @@ The `Thumb` section contains:
 - Thumb opening height
 - Thumb position
 
+Current default thumb values:
+
+- Thumb opening width: `60 mm`
+- Thumb opening height: `60 mm`
+- Thumb position: `80 mm`
+
 ## Generated Spec Panel
 
 The right-side generated spec panel was simplified.
@@ -178,7 +199,7 @@ Removed outputs:
 
 The old top metric strip was removed. Print time now lives in the right-side generated spec panel with filament.
 
-## Print Time And Filament
+## Print Time, Filament, And Material Cost
 
 The app shows rough display estimates, not a true slicer result.
 
@@ -188,6 +209,31 @@ Current display behavior:
 - Filament is centered around `~70 g`.
 - Both vary slightly with generated mesh volume using a clamped scale.
 - Values are prefixed with `~` to communicate that they are estimates.
+- The generated spec panel now includes a `Filament Type` dropdown.
+- Selecting a filament updates:
+  - Estimated filament grams, adjusted by material density relative to the PLA/PETG baseline.
+  - Estimated material cost.
+  - Spool price basis.
+- Filament changes update the estimate display without requiring a geometry rebuild.
+
+Price source used:
+
+- Nawa 3D Amazon US filament comparison pages and search snippets for current 1 kg Amazon listing prices.
+
+Current filament price defaults, researched May 16, 2026 from current Amazon US 1 kg listings:
+
+| Filament | Price basis |
+| --- | ---: |
+| PLA | $14.99/kg |
+| PLA+ / Tough PLA | $15.99/kg |
+| PETG | $15.99/kg |
+| ABS | $15.99/kg |
+| ASA | $20.99/kg |
+| TPU 95A | $22.99/kg |
+| Nylon / PA | $34.99/kg |
+| Polycarbonate | $31.99/kg |
+| PLA-CF | $34.99/kg |
+| PA-CF / Nylon-CF | $39.99/kg |
 
 Current estimator constants are still present in `app.js`:
 
