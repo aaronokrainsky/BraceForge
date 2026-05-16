@@ -88,7 +88,7 @@ Prices fluctuate frequently on Amazon, so these are defaults for quick estimates
 
 ## Modeling Notes
 
-The brace is generated as two shell panels with outer and inner surfaces. The model changes shape along its length from forearm, to wrist, to palm.
+The brace is generated as two shell panels with outer and inner surfaces in one model. The model changes shape along its length from forearm, to wrist, to palm.
 
 The thumb opening grows upward from the selected thumb position, and the left/right setting mirrors the thumb opening rather than only changing labels. Velcro slots are split into shorter cutouts to make the model more practical to print.
 
