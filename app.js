@@ -7,15 +7,16 @@ const defaults = {
   wristCirc: 220,
   metacarpalHeight: 28,
   metacarpalWidth: 100,
-  thumbWidth: 90,
+  thumbWidth: 60,
   thumbHeight: 60,
-  wristHeight: 52,
+  wristHeight: 45,
   wristWidth: 65,
   foreWristLength: 100,
   wristMetaLength: 80,
   thick: 3,
-  metaToThumbLength: 34,
+  metaToThumbLength: 80,
   velcroThickness: 4,
+  filamentType: "petg",
   support: "balanced",
   vents: 3,
   thumbRelief: true,
@@ -24,6 +25,7 @@ const defaults = {
 };
 
 const state = { ...defaults };
+const isHomePreview = Boolean(document.querySelector("[data-home-preview]"));
 const derivedCache = {
   key: "",
   thumbRelief: null,
@@ -31,6 +33,8 @@ const derivedCache = {
 };
 let renderTimer = null;
 let lastRenderKey = "";
+let lastSpecValues = null;
+let lastPrintEstimate = null;
 
 const inputs = {
   wristCirc: document.querySelector("#wristCirc"),
@@ -45,6 +49,7 @@ const inputs = {
   thick: document.querySelector("#thick"),
   metaToThumbLength: document.querySelector("#metaToThumbLength"),
   velcroThickness: document.querySelector("#velcroThickness"),
+  filamentType: document.querySelector("#filamentType"),
   support: null,
   vents: null,
   thumbRelief: null
@@ -53,6 +58,8 @@ const inputs = {
 const output = {
   printTime: document.querySelector("#printTime"),
   filamentUse: document.querySelector("#filamentUse"),
+  filamentCost: document.querySelector("#filamentCost"),
+  filamentPrice: document.querySelector("#filamentPrice"),
   ventLabel: null,
   shellLength: document.querySelector("#shellLength"),
   wristOpening: document.querySelector("#wristOpening"),
@@ -71,6 +78,19 @@ const slicer = {
   travelOverhead: 1.35,
   layerChangeSeconds: 2.2,
   filamentDensity: 1.24
+};
+
+const filamentProfiles = {
+  pla: { label: "PLA", pricePerKg: 14.99, density: 1.24 },
+  plaPlus: { label: "PLA+ / Tough PLA", pricePerKg: 15.99, density: 1.24 },
+  petg: { label: "PETG", pricePerKg: 15.99, density: 1.27 },
+  abs: { label: "ABS", pricePerKg: 15.99, density: 1.05 },
+  asa: { label: "ASA", pricePerKg: 20.99, density: 1.07 },
+  tpu: { label: "TPU 95A", pricePerKg: 22.99, density: 1.21 },
+  nylon: { label: "Nylon / PA", pricePerKg: 34.99, density: 1.12 },
+  pc: { label: "Polycarbonate", pricePerKg: 31.99, density: 1.20 },
+  plaCf: { label: "PLA-CF", pricePerKg: 34.99, density: 1.22 },
+  paCf: { label: "PA-CF / Nylon-CF", pricePerKg: 39.99, density: 1.24 }
 };
 
 const meshResolution = {
@@ -99,6 +119,8 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 16;
 controls.maxDistance = 52;
+controls.autoRotate = isHomePreview;
+controls.autoRotateSpeed = 0.55;
 
 const modelGroup = new THREE.Group();
 scene.add(modelGroup);
@@ -121,12 +143,16 @@ const ground = new THREE.Mesh(
 );
 ground.position.z = -2.35;
 ground.receiveShadow = true;
-scene.add(ground);
+if (!isHomePreview) {
+  scene.add(ground);
+}
 
 const grid = new THREE.GridHelper(44, 44, 0xcfd9d7, 0xdfe7e5);
 grid.rotation.x = Math.PI / 2;
 grid.position.z = -2.32;
-scene.add(grid);
+if (!isHomePreview) {
+  scene.add(grid);
+}
 
 const materials = {
   shell: new THREE.MeshPhysicalMaterial({
@@ -140,7 +166,7 @@ const materials = {
   strap: new THREE.MeshStandardMaterial({ color: 0x384f7c, roughness: 0.72 }),
   buckle: new THREE.MeshStandardMaterial({ color: 0xf8faf9, roughness: 0.45, metalness: 0.04 }),
   skin: new THREE.MeshStandardMaterial({ color: 0xf0c5a5, roughness: 0.72, transparent: true, opacity: 0.28, depthWrite: false }),
-  marker: new THREE.MeshStandardMaterial({ color: 0xb64f2d, roughness: 0.55 })
+  marker: new THREE.MeshStandardMaterial({ color: 0xb4873e, roughness: 0.55 })
 };
 
 function clamp(value, min, max) {
@@ -193,9 +219,14 @@ function readState() {
   state.thick = defaults.thick;
   state.metaToThumbLength = clamp(Number(inputs.metaToThumbLength.value) || defaults.metaToThumbLength, 20, 100);
   state.velcroThickness = clamp(Number(inputs.velcroThickness.value) || defaults.velcroThickness, 2, 8);
+  state.filamentType = filamentProfiles[inputs.filamentType?.value] ? inputs.filamentType.value : defaults.filamentType;
   state.support = defaults.support;
   state.vents = defaults.vents;
   state.thumbRelief = true;
+}
+
+function selectedFilamentProfile() {
+  return filamentProfiles[state.filamentType] || filamentProfiles[defaults.filamentType];
 }
 
 function spec() {
@@ -803,7 +834,9 @@ function addHandGhost() {
 
 function buildModel() {
   clearModel();
-  addHandGhost();
+  if (!isHomePreview) {
+    addHandGhost();
+  }
   buildShellMeshes(meshResolution.preview).forEach((shell) => {
     modelGroup.add(shell);
   });
@@ -1049,9 +1082,19 @@ function crc32(data) {
 }
 
 function renderSpecs(values, printEstimate) {
+  const filament = selectedFilamentProfile();
+  const adjustedGrams = printEstimate.grams * (filament.density / slicer.filamentDensity);
+  const materialCost = (adjustedGrams / 1000) * filament.pricePerKg;
+
   output.printTime.textContent = `~${formatHours(printEstimate.hours)}`;
   if (output.filamentUse) {
-    output.filamentUse.textContent = `~${printEstimate.grams.toFixed(0)} g`;
+    output.filamentUse.textContent = `~${adjustedGrams.toFixed(0)} g`;
+  }
+  if (output.filamentCost) {
+    output.filamentCost.textContent = `~$${materialCost.toFixed(2)}`;
+  }
+  if (output.filamentPrice) {
+    output.filamentPrice.textContent = `$${filament.pricePerKg.toFixed(2)}/kg`;
   }
   if (output.ventLabel) {
     output.ventLabel.textContent = state.vents;
@@ -1076,7 +1119,9 @@ function renderSpecs(values, printEstimate) {
 function setCamera(mode = state.camera) {
   state.camera = mode;
   const targetY = (state.wristMetaLength - state.foreWristLength) * SCALE * 0.5;
-  if (mode === "top") {
+  if (isHomePreview) {
+    camera.position.set(5.5, -7.5, 24);
+  } else if (mode === "top") {
     camera.position.set(0, targetY, 23);
   } else if (mode === "side") {
     camera.position.set(15, -12, 8);
@@ -1099,12 +1144,17 @@ function render() {
   resetDerivedCache();
   const renderKey = geometryStateKey();
   if (renderKey === lastRenderKey) {
+    if (lastSpecValues && lastPrintEstimate) {
+      renderSpecs(lastSpecValues, lastPrintEstimate);
+    }
     return;
   }
   lastRenderKey = renderKey;
   const values = spec();
   buildModel();
   const printEstimate = estimatePrint();
+  lastSpecValues = values;
+  lastPrintEstimate = printEstimate;
   renderSpecs(values, printEstimate);
 }
 

@@ -3,14 +3,25 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CuffForm Studio</title>
-    <link rel="stylesheet" href="styles.css?v=home-banner-20260516">
+    <title>BraceForge</title>
+    <link rel="stylesheet" href="styles.css?v=braceforge-amazon-20260516">
     <script defer src="home-debug.js?v=home-banner-20260516"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
   </head>
   <body class="landing-page">
     <header class="site-header">
       <nav class="site-header-inner" aria-label="Primary">
-        <a class="brand-link" href="index.html">CuffForm Studio</a>
+        <a class="brand-link" href="index.html">
+          <img class="brand-logo" src="assets/braceforge-logo.png" alt="" aria-hidden="true">
+          <span>BraceForge</span>
+        </a>
         <div class="nav-links">
           <a class="nav-config-link" href="printing.html">Printing Instructions</a>
           <a class="nav-config-link" href="configurator.html">Open configurator</a>
@@ -21,18 +32,15 @@
     <main class="landing-shell">
       <section class="landing-hero" aria-labelledby="landing-title">
         <div class="landing-copy">
-          <p class="eyebrow">CuffForm Studio</p>
+          <img class="hero-logo" src="assets/braceforge-logo.png" alt="BraceForge">
           <h1 id="landing-title">Custom wrist brace design, ready for 3D printing.</h1>
           <p class="landing-lede">
-            Build a two-part brace from real hand measurements, preview the model, and export the generated shell as an STL.
+            Build a two-part brace from real hand measurements, preview the model, and export the generated shell as an STL or 3mf.
           </p>
-          <div class="landing-actions">
-            <a class="primary-link" href="configurator.html">Open configurator</a>
-            <a class="secondary-link" href="printing.html">Printing Instructions</a>
-          </div>
         </div>
-        <div class="landing-visual" aria-label="Brace preview image">
-          <img src="tmp_3mf_extract/expanded/Metadata/thumbnail.png" alt="3D printed brace reference preview">
+        <div class="landing-visual" aria-label="Interactive BraceForge model preview">
+          <div id="braceViewport" role="img" aria-label="Orbitable 3D wrist brace preview"></div>
+          <div class="preview-status">Drag to orbit. Scroll to zoom.</div>
         </div>
       </section>
 
@@ -50,9 +58,31 @@
         <div>
           <span>03</span>
           <h2>Export</h2>
-          <p>Download the generated STL and check it in slicer software before printing.</p>
+          <p>Download the generated STL/3mf and check it in slicer software before printing.</p>
         </div>
       </section>
     </main>
+    <footer class="site-disclaimer">
+      BraceForge is not medical advice and is not intended to provide real medical support, diagnosis, treatment, or professional care. Created by Aaron Okrainsky, 2026.
+    </footer>
+    <div class="home-preview-inputs" aria-hidden="true" data-home-preview="true">
+      <input id="wristCirc" type="number" value="220">
+      <input id="foreWristLength" type="number" value="100">
+      <input id="wristHeight" type="number" value="52">
+      <input id="wristWidth" type="number" value="65">
+      <input id="metacarpalHeight" type="number" value="28">
+      <input id="metacarpalWidth" type="number" value="100">
+      <input id="wristMetaLength" type="number" value="80">
+      <input id="thumbWidth" type="number" value="60">
+      <input id="thumbHeight" type="number" value="60">
+      <input id="metaToThumbLength" type="number" value="80">
+      <input id="velcroThickness" type="number" value="4">
+      <select id="filamentType"><option value="petg" selected>PETG</option></select>
+      <span id="printTime"></span>
+      <span id="filamentUse"></span>
+      <span id="filamentCost"></span>
+      <span id="filamentPrice"></span>
+    </div>
+    <script type="module" src="app.js?v=home-configurator-model-20260516"></script>
   </body>
 </html>

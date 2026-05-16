@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CuffForm Studio Configurator</title>
-    <link rel="stylesheet" href="styles.css?v=configurator-groups-20260516">
+    <title>BraceForge Configurator</title>
+    <link rel="stylesheet" href="styles.css?v=braceforge-amazon-20260516">
     <script type="importmap">
       {
         "imports": {
@@ -18,10 +18,13 @@
     <main class="app-shell">
       <section class="workspace" aria-labelledby="app-title">
         <header class="topbar">
-          <div>
-            <p class="eyebrow">CuffForm Studio</p>
+          <a class="topbar-brand topbar-brand-link" href="index.html" aria-label="BraceForge home">
+            <img class="topbar-logo" src="assets/braceforge-logo.png" alt="" aria-hidden="true">
+            <div>
+            <p class="eyebrow">BraceForge</p>
             <h1 id="app-title">Custom Hand Brace Configurator</h1>
-          </div>
+            </div>
+          </a>
           <div class="topbar-actions">
             <a class="home-link" href="index.html">Home</a>
           </div>
@@ -108,7 +111,7 @@
                 </label>
                 <label>
                   <span class="label-text">Thumb position <span class="info-bubble" tabindex="0">i<span class="tooltip">Measure from the knuckle/metacarpal line to the thumb web. Larger values move the thumb opening lower.</span></span></span>
-                  <input id="metaToThumbLength" type="number" min="20" max="100" step="1" value="34">
+                  <input id="metaToThumbLength" type="number" min="20" max="100" step="1" value="80">
                   <span class="unit">mm</span>
                   <small class="range-text">20-100 mm</small>
                 </label>
@@ -147,7 +150,7 @@
               <button class="icon-button" type="button" data-camera="side" aria-label="Side view" title="Side view">S</button>
             </div>
             <div id="braceViewport" role="img" aria-label="Navigable 3D hand brace preview"></div>
-            <div class="viewport-status" id="viewportStatus">Drag to orbit. Scroll to zoom.</div>
+            <div class="viewport-status" id="viewportStatus">Drag to orbit. Scroll to zoom. Preview not exactly to scale.</div>
           </section>
 
           <aside class="spec-panel" aria-label="Generated specifications">
@@ -161,6 +164,31 @@
                 <dt>Estimated Filament</dt>
                 <dd id="filamentUse">70 g</dd>
               </div>
+              <div class="material-row">
+                <dt>Filament Type</dt>
+                <dd>
+                  <select id="filamentType" aria-label="Filament type">
+                    <option value="pla">PLA</option>
+                    <option value="plaPlus">PLA+ / Tough PLA</option>
+                    <option value="petg" selected>PETG</option>
+                    <option value="abs">ABS</option>
+                    <option value="asa">ASA</option>
+                    <option value="tpu">TPU 95A</option>
+                    <option value="nylon">Nylon / PA</option>
+                    <option value="pc">Polycarbonate</option>
+                    <option value="plaCf">PLA-CF</option>
+                    <option value="paCf">PA-CF / Nylon-CF</option>
+                  </select>
+                </dd>
+              </div>
+              <div>
+                <dt>Estimated Material Cost</dt>
+                <dd id="filamentCost">~$1.15</dd>
+              </div>
+              <div>
+                <dt>Spool Price Basis</dt>
+                <dd id="filamentPrice">$15.99/kg</dd>
+              </div>
             </dl>
             <div class="export-actions">
               <button class="export-button" type="button" id="exportStl">Export STL</button>
@@ -171,6 +199,9 @@
         </div>
       </section>
     </main>
+    <footer class="site-disclaimer">
+      BraceForge is not medical advice and is not intended to provide real medical support, diagnosis, treatment, or professional care. Created by Aaron Okrainsky, 2026.
+    </footer>
     <script type="module" src="app.js?v=ghost-hand-20260516"></script>
   </body>
 </html>
