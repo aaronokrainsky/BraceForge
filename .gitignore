@@ -1,0 +1,10 @@
+.chrome-debug-profile/
+.idea/
+*.iml
+*.log
+server-*.log
+server-*.err.log
+tmp_3mf_extract/
+home-debug.js
+printing-debug.js
+VERCEL_HOSTING_GUIDE.md
