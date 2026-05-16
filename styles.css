@@ -380,6 +380,24 @@ input[type="range"] {
   accent-color: var(--accent);
 }
 
+.range-field input[type="range"] {
+  grid-column: 2;
+  width: 100%;
+  min-width: 0;
+}
+
+.range-field strong {
+  min-width: 72px;
+  color: var(--accent);
+  font-size: 0.82rem;
+  text-align: right;
+}
+
+.field.range-field {
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 168px) 78px;
+  column-gap: 14px;
+}
+
 .segmented {
   grid-column: 2 / 4;
   display: grid;

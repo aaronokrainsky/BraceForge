@@ -10,7 +10,7 @@ This file records the current state of the brace website, model generator, decis
 - `styles.css`: shared styling for the landing page and configurator.
 - `app.js`: Three.js scene, procedural model generation, print estimate, STL/3MF export, controls, and render loop.
 - `assets/braceforge-logo.png`: user-provided BF logo used in page headers and the landing hero.
-- `README.md`: short project overview.
+- `README.md`: public project overview with a resized logo image, workflow, pricing, export notes, and limitations.
 - `PROJECT_NOTES.md`: this detailed implementation/history file.
 
 Local server:
@@ -44,11 +44,26 @@ Current branding:
 - Primary color: deep green from the logo family.
 - Secondary color: metallic gold from the logo family.
 - The user-provided BF logo is used in the top-left header on public pages, in the configurator topbar, and as the single logo mark in the landing hero body.
+- The README displays the logo with an HTML image tag at `width="180"` so it does not render at full size on GitHub.
 - Shared logo asset:
 
 ```text
 assets/braceforge-logo.png
 ```
+
+## Footer / Disclaimer
+
+All public pages include small fine print at the bottom:
+
+```text
+BraceForge is not medical advice and is not intended to provide real medical support, diagnosis, treatment, or professional care. Created by Aaron Okrainsky, 2026.
+```
+
+This footer appears on:
+
+- `index.html`
+- `configurator.html`
+- `printing.html`
 
 ## Landing Page
 
@@ -63,6 +78,8 @@ Landing page behavior:
 - The homepage preview sets `data-home-preview="true"` so `app.js` skips the translucent hand and Three.js grid only on the landing page.
 - The homepage preview also enables OrbitControls auto-rotate.
 - The Three.js ground sheet and CSS panel/background are removed for the homepage preview only; the configurator grid and ground stay unchanged.
+- The homepage camera is overridden in `setCamera()` when `isHomePreview` is true so the model is viewed from above instead of from below.
+- The homepage preview uses the same `#braceViewport` element and hidden fixed inputs, including thumb defaults of width `60`, height `60`, and position `80`.
 - The previous `PROJECT_NOTES.md` link was removed from the public landing page.
 - The previous static thumbnail was:
 
@@ -120,6 +137,7 @@ Current controls:
 - Thumb position
 - Strap thickness
 - Hand side: left/right
+- Breathability: Off/Low/Medium/High hex ventilation holes
 
 Removed controls:
 
@@ -135,17 +153,28 @@ Current parameter ranges:
 | Palm thickness | 18-50 mm |
 | Knuckle width | 65-120 mm |
 | Thumb opening width | 20-60 mm |
-| Thumb opening height | 35-100 mm |
+| Thumb opening height | 0-80 mm |
 | Wrist thickness | 30-75 mm |
 | Wrist width | 40-90 mm |
 | Forearm length | 70-160 mm |
 | Palm length | 55-110 mm |
 | Thumb position | 20-100 mm |
 | Strap thickness | 2-8 mm |
+| Breathability | 0-3 levels |
 
 Important: `Forearm circumference` controls the lower/forearm cuff. It is named this way because the width/thickness version made the model look abnormal and was reverted.
 
 The configurator header includes a `Home` link back to `index.html`.
+
+The configurator logo/brand block in the top-left is also a link back to `index.html`.
+
+Configurator layout:
+
+- Desktop uses a fixed-height grid row for the main content so expanding the left-side measurement groups does not stretch the middle renderer.
+- The left control panel and right generated spec panel scroll independently when their content is taller than the viewport.
+- Mobile still stacks the panels and renderer naturally.
+- The rendered viewport status text includes: `Preview not exactly to scale.`
+- Configuration includes a `Breathability` slider with labels `Off`, `Low`, `Medium`, and `High`.
 
 Measurement controls are grouped into expandable sections:
 
@@ -192,6 +221,9 @@ Current generated outputs:
 
 - Estimated Print Time
 - Estimated Filament
+- Filament Type dropdown
+- Estimated Material Cost
+- Spool Price Basis
 
 Removed outputs:
 
@@ -305,7 +337,7 @@ const topClearance = 8;
 ```
 
 - `Thumb position` defines the bottom of the thumb opening. Changing `Thumb opening height` grows the cutout upward from that bottom point instead of moving the bottom edge.
-- The thumb opening now gets priority over the upper thumb-side strap. Top clearance is intentionally small so height values up to `100 mm` visibly affect the cutout; the dynamic top thumb-side strap disappears when there is not enough room.
+- The thumb opening now gets priority over the upper thumb-side strap. Top clearance is intentionally small so higher thumb-height values visibly affect the cutout; the dynamic top thumb-side strap disappears when there is not enough room.
 - The dynamic top thumb-side strap should not shrink too early. It currently keeps only `2 mm` clearance from the thumb opening and stays full height until the available space is less than a full regular top slot.
 - `Thumb opening width` currently has a UI/model range of `20-60 mm`; wider ranges looked unreliable.
 - `Thumb opening width` is converted to an angular span using the local brace radius around the thumb opening. It should behave like a measured width instead of the old narrow width/metacarpal ratio.
@@ -348,6 +380,36 @@ Important fix:
 
 - Use `angleDistance(a, b)` for slot angle comparisons.
 - Direct `Math.abs(theta - slotTheta)` caused missing slots because wrapped angles did not match the second panel.
+
+## Breathability / Hex Vent Holes
+
+The configurator includes a breathability slider:
+
+- `0`: Off
+- `1`: Low
+- `2`: Medium
+- `3`: High
+
+Implementation:
+
+- The slider is `#ventilation` in `configurator.html`.
+- The display label is `#ventilationValue`.
+- `state.vents` is included in `geometryStateKey()` so changing ventilation rebuilds the mesh.
+- `isVentHole(theta, yMm)` adds deterministic hexagonal cutouts in surface-coordinate space.
+- Hex holes use staggered rows with spacing and radius based on level.
+- Holes are intentionally disabled on the homepage preview by `isHomePreview`.
+
+Vent exclusion zones:
+
+- Top and bottom rims.
+- Panel split edges.
+- Expanded Velcro slot areas.
+- Expanded thumb opening area.
+
+Rationale:
+
+- Controlled hex holes were chosen over true Voronoi because they are more predictable, easier to keep away from structural cutouts, and less likely to create thin webs or slicer issues.
+- Do not replace this with full Voronoi unless the model is also given much stronger manufacturability validation.
 
 ## Slicer / Orca Issue
 
@@ -416,6 +478,23 @@ brace-{hand}-thumb-{thumbWidth}mm.3mf
 
 A translucent ghost hand preview was re-added by user request. It is built from simple measurement-driven preview meshes only, includes palm/wrist/forearm, thumb, and four fingers, and is not included in STL/3MF export.
 
+The translucent ghost hand is shown in the configurator only. It is skipped for the homepage preview through the `isHomePreview` flag.
+
+## README / GitHub
+
+README status:
+
+- Uses `<img src="assets/braceforge-logo.png" alt="BraceForge logo" width="180">`.
+- Documents the current homepage preview behavior, configurator behavior, filament pricing defaults, export workflow, and limitations.
+- The default-measurements section was removed from the README by user request.
+
+Git status notes:
+
+- `assets/braceforge-logo.png` was committed and pushed so the README image renders on GitHub.
+- Commit `172d3ff` added the logo asset.
+- Commit `6629c76` resized the README logo.
+- Pushes go to `origin master`; GitHub reported the repository moved to `https://github.com/aaronokrainsky/BraceForge.git`.
+
 ## Performance
 
 Performance was improved by:
@@ -426,6 +505,7 @@ Performance was improved by:
 - Precomputing cutout grids per panel during mesh generation.
 - Removing number spinner buttons to reduce accidental rapid changes.
 - Keeping preview resolution lower than export resolution.
+- Separating desktop side-panel scrolling from the middle renderer so opening controls does not resize the canvas.
 
 Current model is still heavy because of the high mesh resolution needed for the smooth thumb opening.
 
@@ -438,9 +518,12 @@ Current model is still heavy because of the high mesh resolution needed for the 
 - Do not remove the thumb-strip fix.
 - Do not replace forearm circumference with forearm width/thickness again unless the shape logic is redesigned.
 - Do not remove Velcro cutout caps without replacing them with slicer-valid solid wall geometry.
+- Do not let ventilation holes overlap thumb cutouts, strap slots, split edges, or top/bottom rims.
 - Do not put the project notes link back on the public landing page unless requested.
 - Do not make the printing instructions page edge-to-edge; keep it constrained like the landing page.
 - Do not make landing/printing nav sticky unless it has an opaque background and cannot overlap content.
+- Do not reintroduce a separate homepage preview model unless explicitly requested; the homepage currently uses the same procedural renderer as the configurator.
+- Do not remove the medical disclaimer / attribution footer unless explicitly requested.
 
 ## Current Stable State
 
@@ -453,6 +536,10 @@ User-approved model state:
 - Thumb cutout is much smoother after mesh resolution increase.
 - Landing page and configurator split works.
 - Configurator has a home link.
+- Configurator top-left logo/brand also links home.
+- Homepage preview uses the configurator procedural model, auto-rotates, hides the hand/grid/ground, and has no white backing panel.
+- Configurator panels no longer stretch the renderer when measurement groups expand.
+- Fine-print medical disclaimer and Aaron Okrainsky 2026 attribution appear on all pages.
 - Printing instructions page exists and is linked from the landing page and configurator export note.
 - Export supports STL and 3MF.
 

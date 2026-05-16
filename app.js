@@ -18,7 +18,7 @@ const defaults = {
   velcroThickness: 4,
   filamentType: "petg",
   support: "balanced",
-  vents: 3,
+  vents: 0,
   thumbRelief: true,
   hand: "left",
   camera: "iso"
@@ -29,7 +29,8 @@ const isHomePreview = Boolean(document.querySelector("[data-home-preview]"));
 const derivedCache = {
   key: "",
   thumbRelief: null,
-  strapSlots: null
+  strapSlots: null,
+  ventExclusion: null
 };
 let renderTimer = null;
 let lastRenderKey = "";
@@ -51,7 +52,7 @@ const inputs = {
   velcroThickness: document.querySelector("#velcroThickness"),
   filamentType: document.querySelector("#filamentType"),
   support: null,
-  vents: null,
+  vents: document.querySelector("#ventilation"),
   thumbRelief: null
 };
 
@@ -60,7 +61,7 @@ const output = {
   filamentUse: document.querySelector("#filamentUse"),
   filamentCost: document.querySelector("#filamentCost"),
   filamentPrice: document.querySelector("#filamentPrice"),
-  ventLabel: null,
+  ventLabel: document.querySelector("#ventilationValue"),
   shellLength: document.querySelector("#shellLength"),
   wristOpening: document.querySelector("#wristOpening"),
   palmOpening: document.querySelector("#palmOpening"),
@@ -187,6 +188,7 @@ function geometryStateKey() {
     state.thick,
     state.metaToThumbLength,
     state.velcroThickness,
+    state.vents,
     state.hand
   ].join("|");
 }
@@ -197,6 +199,7 @@ function resetDerivedCache() {
     derivedCache.key = key;
     derivedCache.thumbRelief = null;
     derivedCache.strapSlots = null;
+    derivedCache.ventExclusion = null;
   }
 }
 
@@ -221,7 +224,7 @@ function readState() {
   state.velcroThickness = clamp(Number(inputs.velcroThickness.value) || defaults.velcroThickness, 2, 8);
   state.filamentType = filamentProfiles[inputs.filamentType?.value] ? inputs.filamentType.value : defaults.filamentType;
   state.support = defaults.support;
-  state.vents = defaults.vents;
+  state.vents = clamp(Math.round(Number(inputs.vents?.value) || defaults.vents), 0, 3);
   state.thumbRelief = true;
 }
 
@@ -463,12 +466,121 @@ function isStrapSlot(theta, yMm) {
   );
 }
 
+function ventilationLabel(value = state.vents) {
+  return ["Off", "Low", "Medium", "High"][value] || "Off";
+}
+
+function ventExclusionData() {
+  resetDerivedCache();
+  if (derivedCache.ventExclusion) {
+    return derivedCache.ventExclusion;
+  }
+  const splitHalf = splitThetaHalf();
+  const splitEdges = [
+    -Math.PI / 2 + splitHalf,
+    Math.PI / 2 - splitHalf,
+    Math.PI / 2 + splitHalf,
+    Math.PI * 1.5 - splitHalf
+  ];
+
+  let thumb = null;
+  if (state.thumbRelief) {
+    const { sideSplit, topY, bottomY, palmarStart } = thumbReliefProfile();
+    thumb = {
+      minTheta: Math.min(sideSplit, palmarStart) - 0.2,
+      maxTheta: Math.max(sideSplit, palmarStart) + 0.2,
+      minY: bottomY - 12,
+      maxY: topY + 12
+    };
+  }
+
+  derivedCache.ventExclusion = {
+    yMin: -state.foreWristLength,
+    yMax: state.wristMetaLength,
+    rimClearanceMm: 18,
+    splitEdges,
+    slots: strapSlotSpecs(),
+    thumb
+  };
+  return derivedCache.ventExclusion;
+}
+
+function isNearVentExclusion(theta, yMm) {
+  const data = ventExclusionData();
+  if (yMm < data.yMin + data.rimClearanceMm || yMm > data.yMax - data.rimClearanceMm) {
+    return true;
+  }
+
+  if (data.splitEdges.some((edge) => angleDistance(theta, edge) < 0.16)) {
+    return true;
+  }
+
+  if (data.slots.some((slot) =>
+    angleDistance(theta, slot.theta) < slot.halfTheta + 0.075 &&
+    Math.abs(yMm - slot.y) < slot.halfHeight + 8
+  )) {
+    return true;
+  }
+
+  if (data.thumb) {
+    if (yMm >= data.thumb.minY && yMm <= data.thumb.maxY && theta >= data.thumb.minTheta && theta <= data.thumb.maxTheta) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isInsideHex(dxMm, dyMm, radiusMm) {
+  const x = Math.abs(dxMm);
+  const y = Math.abs(dyMm);
+  const apothem = Math.sqrt(3) * radiusMm * 0.5;
+  return x <= radiusMm && y <= apothem && Math.sqrt(3) * x + y <= Math.sqrt(3) * radiusMm;
+}
+
+function isVentHole(theta, yMm) {
+  if (state.vents <= 0 || isHomePreview || isNearVentExclusion(theta, yMm)) {
+    return false;
+  }
+
+  const spacingByLevel = [0, 24, 20, 17];
+  const radiusByLevel = [0, 3.2, 3.8, 4.3];
+  const spacingMm = spacingByLevel[state.vents];
+  const radiusMm = radiusByLevel[state.vents];
+  const rowSpacingMm = spacingMm * Math.sqrt(3) * 0.5;
+  const section = sectionAt(yMm, 0);
+  const averageRadiusMm = ((section.rx + section.rz) / 2) / SCALE;
+  const xMm = theta * averageRadiusMm;
+  const yOriginMm = -state.foreWristLength + 26;
+  const row = Math.round((yMm - yOriginMm) / rowSpacingMm);
+
+  for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
+    const candidateRow = row + rowOffset;
+    const centerY = yOriginMm + candidateRow * rowSpacingMm;
+    const xOffset = candidateRow % 2 === 0 ? 0 : spacingMm * 0.5;
+    const col = Math.round((xMm - xOffset) / spacingMm);
+
+    for (let colOffset = -1; colOffset <= 1; colOffset += 1) {
+      const centerX = xOffset + (col + colOffset) * spacingMm;
+      if (isInsideHex(xMm - centerX, yMm - centerY, radiusMm)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 function isCutout(theta, yMm) {
   if (isStrapSlot(theta, yMm)) {
     return true;
   }
 
   if (isThumbReliefCutout(theta, yMm)) {
+    return true;
+  }
+
+  if (isVentHole(theta, yMm)) {
     return true;
   }
 
@@ -543,9 +655,10 @@ function buildBraceMesh(thetaMin, thetaMax, resolution = meshResolution.preview)
       const thetaMid = (thetaA + thetaB) / 2;
       const strap = isStrapSlot(thetaMid, yMid);
       const thumb = isThumbReliefCutout(thetaMid, yMid);
+      const vent = isVentHole(thetaMid, yMid);
       strapRow[it] = strap ? 1 : 0;
       thumbRow[it] = thumb ? 1 : 0;
-      cutoutRow[it] = strap || thumb ? 1 : 0;
+      cutoutRow[it] = strap || thumb || vent ? 1 : 0;
     }
 
     cutoutGrid[iy] = cutoutRow;
@@ -1097,7 +1210,7 @@ function renderSpecs(values, printEstimate) {
     output.filamentPrice.textContent = `$${filament.pricePerKg.toFixed(2)}/kg`;
   }
   if (output.ventLabel) {
-    output.ventLabel.textContent = state.vents;
+    output.ventLabel.textContent = ventilationLabel();
   }
   if (output.shellLength) {
     output.shellLength.textContent = `${values.shellLength.toFixed(0)} mm`;

@@ -29,7 +29,7 @@ Useful pages:
 ## Main Files
 
 - `index.html`: landing page with BraceForge branding, top navigation, workflow cards, fixed hidden preview inputs, and an orbitable preview using the configurator model.
-- `configurator.html`: measurement controls, hand-side selector, viewport, generated specs, filament type/cost estimator, not-to-scale preview note, and export buttons.
+- `configurator.html`: measurement controls, hand-side selector, breathability slider, viewport, generated specs, filament type/cost estimator, not-to-scale preview note, and export buttons.
 - `printing.html`: slicer setup, orientation, suggested settings, and post-print checks.
 - `styles.css`: shared visual system, responsive layout, logo sizing, green primary color, gold secondary color, landing preview styling, and configurator layout.
 - `app.js`: Three.js scene, brace geometry generation, ghost-hand preview, thumb opening, Velcro cutouts, homepage preview mode, print/material estimate, and STL/3MF export.
@@ -62,8 +62,9 @@ The configurator keeps the full viewport behavior with orbit controls, camera bu
 3. Choose left-hand or right-hand mode.
 4. Inspect the 3D preview using orbit, zoom, and camera buttons.
 5. Choose a filament type to estimate material cost.
-6. Export STL or 3MF.
-7. Open the export in slicer software and inspect the first layer, cutouts, thumb opening, and overall fit before printing.
+6. Optionally raise the breathability slider to add controlled hex ventilation holes.
+7. Export STL or 3MF.
+8. Open the export in slicer software and inspect the first layer, cutouts, thumb opening, and overall fit before printing.
 
 ## Filament Cost Estimate
 
@@ -91,6 +92,8 @@ Prices fluctuate frequently on Amazon, so these are defaults for quick estimates
 The brace is generated as two shell panels with outer and inner surfaces in one model. The model changes shape along its length from forearm, to wrist, to palm.
 
 The thumb opening grows upward from the selected thumb position, and the left/right setting mirrors the thumb opening rather than only changing labels. Velcro slots are split into shorter cutouts to make the model more practical to print.
+
+The breathability slider adds deterministic hexagonal ventilation holes at `Low`, `Medium`, or `High` density. Holes are excluded near the thumb opening, Velcro strap slots, split edges, and top/bottom rims to reduce print and strength risks.
 
 The homepage uses the same procedural model as the configurator. A previously tested 3MF homepage preview and separate mini renderer were removed so there is only one model-generation path for previews.
 
