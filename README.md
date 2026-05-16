@@ -1,6 +1,6 @@
 # BraceForge
 
-![BraceForge logo](assets/braceforge-logo.png)
+<img src="assets/braceforge-logo.png" alt="BraceForge logo" width="180">
 
 BraceForge is a browser-based configurator for generating a custom 3D-printable wrist and hand brace. It uses Three.js to build a procedural two-part brace from forearm, wrist, palm, thumb, and strap measurements, previews the generated model in the browser, estimates print/material usage, and exports STL or 3MF files for slicing.
 
