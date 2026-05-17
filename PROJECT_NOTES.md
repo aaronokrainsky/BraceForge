@@ -5,8 +5,9 @@ This file records the current state of the brace website, model generator, decis
 ## Current Site Structure
 
 - `index.html`: landing page for **BraceForge**.
+- `case-study.html`: case study page for the project story, problem, iteration process, planned image slots, and lessons learned.
 - `configurator.html`: the actual brace renderer/configurator.
-- `printing.html`: printing instructions and general slicer guidance.
+- `printing.html`: printing guide and general slicer guidance.
 - `styles.css`: shared styling for the landing page and configurator.
 - `app.js`: Three.js scene, procedural model generation, print estimate, STL/3MF export, controls, and render loop.
 - `assets/braceforge-logo.png`: user-provided BF logo used in page headers and the landing hero.
@@ -23,6 +24,7 @@ Pages:
 
 ```text
 http://localhost:8000/
+http://localhost:8000/case-study.html
 http://localhost:8000/configurator.html
 http://localhost:8000/printing.html
 ```
@@ -62,6 +64,7 @@ BraceForge is not medical advice and is not intended to provide real medical sup
 This footer appears on:
 
 - `index.html`
+- `case-study.html`
 - `configurator.html`
 - `printing.html`
 
@@ -71,8 +74,9 @@ The landing page now loads Three.js through `app.js` so the hero preview uses th
 
 Landing page behavior:
 
-- Top navigation has the BraceForge logo/name and filled-button links for `Printing Instructions` and `Open configurator`.
-- Main hero no longer has duplicated middle buttons for `Open configurator` or `Printing Instructions`; those actions live in the top navigation.
+- Top navigation has the BraceForge logo/name and filled-button links for `Printing Guide` and `Open configurator`.
+- Top navigation also links to the project case study.
+- Main hero no longer has duplicated middle buttons for `Open configurator` or `Printing Guide`; those actions live in the top navigation.
 - Main hero uses the same procedural brace renderer as the configurator by loading `app.js` with fixed hidden homepage inputs.
 - The separate `home-preview.js` mini renderer and 3MF homepage asset were removed so the homepage no longer uses a separate preview model.
 - The homepage preview sets `data-home-preview="true"` so `app.js` skips the translucent hand and Three.js grid only on the landing page.
@@ -94,7 +98,23 @@ Important landing page fixes:
 - The landing nav is now static instead of sticky because the sticky version overlapped the hero text while scrolling.
 - Both top-right landing nav links should use the same filled `nav-config-link` visual treatment.
 
-## Printing Instructions Page
+## Case Study Page
+
+The case study page is at `case-study.html`.
+
+Current design:
+
+- Uses the shared BraceForge public-page header, footer, logo, colors, and responsive nav.
+- Adds a project-story page without changing the configurator model.
+- Documents the problem: traditional custom orthotics can be slow and expensive because each fit change can require manual design iteration.
+- Documents the process: seven SolidWorks versions, measurement-driven geometry, parametric transitions, slicer/material testing, and browser configurator development.
+- Documents failures and learning: the original strapless plastic-spring concept, difficult fit, oversized thumb clearance, brittle top geometry, lack of ventilation, strap slicing behavior, and ventilation structure risks.
+- Uses optimized local web images in `assets/case-study/web/` for the early perforated one-sided design, oversized-thumb design, split Velcro design, final reference design, SolidWorks parameter table, thumb-hole testing, and physical fit-test images.
+- The problem section intentionally has no image slots; the visual story starts in the iteration section.
+- The landing page includes a short case-study callout linking to this page.
+- Public top navigation links to the case study from the landing page, printing page, and configurator.
+
+## Printing Guide Page
 
 The printing guide is at `printing.html`.
 
@@ -520,7 +540,7 @@ Current model is still heavy because of the high mesh resolution needed for the 
 - Do not remove Velcro cutout caps without replacing them with slicer-valid solid wall geometry.
 - Do not let ventilation holes overlap thumb cutouts, strap slots, split edges, or top/bottom rims.
 - Do not put the project notes link back on the public landing page unless requested.
-- Do not make the printing instructions page edge-to-edge; keep it constrained like the landing page.
+- Do not make the printing guide page edge-to-edge; keep it constrained like the landing page.
 - Do not make landing/printing nav sticky unless it has an opaque background and cannot overlap content.
 - Do not reintroduce a separate homepage preview model unless explicitly requested; the homepage currently uses the same procedural renderer as the configurator.
 - Do not remove the medical disclaimer / attribution footer unless explicitly requested.
@@ -540,7 +560,7 @@ User-approved model state:
 - Homepage preview uses the configurator procedural model, auto-rotates, hides the hand/grid/ground, and has no white backing panel.
 - Configurator panels no longer stretch the renderer when measurement groups expand.
 - Fine-print medical disclaimer and Aaron Okrainsky 2026 attribution appear on all pages.
-- Printing instructions page exists and is linked from the landing page and configurator export note.
+- Printing guide page exists and is linked from the landing page and configurator export note.
 - Export supports STL and 3MF.
 
 Current unresolved risk:

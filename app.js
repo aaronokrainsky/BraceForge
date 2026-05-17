@@ -1233,7 +1233,7 @@ function setCamera(mode = state.camera) {
   state.camera = mode;
   const targetY = (state.wristMetaLength - state.foreWristLength) * SCALE * 0.5;
   if (isHomePreview) {
-    camera.position.set(5.5, -7.5, 24);
+    camera.position.set(4.2, -6.2, 17.5);
   } else if (mode === "top") {
     camera.position.set(0, targetY, 23);
   } else if (mode === "side") {
@@ -1241,7 +1241,7 @@ function setCamera(mode = state.camera) {
   } else {
     camera.position.set(8, -12, 19);
   }
-  controls.target.set(0, targetY, 0);
+  controls.target.set(0, isHomePreview ? targetY + 0.55 : targetY, 0);
   controls.update();
 }
 

@@ -23,12 +23,14 @@ http://localhost:8000/
 Useful pages:
 
 - `http://localhost:8000/`: landing page
+- `http://localhost:8000/case-study.html`: project case study
 - `http://localhost:8000/configurator.html`: brace configurator
 - `http://localhost:8000/printing.html`: printing and slicer guidance
 
 ## Main Files
 
 - `index.html`: landing page with BraceForge branding, top navigation, workflow cards, fixed hidden preview inputs, and an orbitable preview using the configurator model.
+- `case-study.html`: project case study page covering the problem, iteration process, planned prototype/CAD image slots, failure points, and learned fixes.
 - `configurator.html`: measurement controls, hand-side selector, breathability slider, viewport, generated specs, filament type/cost estimator, not-to-scale preview note, and export buttons.
 - `printing.html`: slicer setup, orientation, suggested settings, and post-print checks.
 - `styles.css`: shared visual system, responsive layout, logo sizing, green primary color, gold secondary color, landing preview styling, and configurator layout.
@@ -38,7 +40,7 @@ Useful pages:
 
 ## Current UI
 
-The landing page uses the final BraceForge branding with a deep green primary color and gold secondary accent. The top navigation links to the printing guide and configurator. The middle homepage CTA buttons were removed.
+The landing page uses the final BraceForge branding with a deep green primary color and gold secondary accent. The top navigation links to the case study, printing guide, and configurator. The middle homepage CTA buttons were removed.
 
 The homepage preview loads `app.js` with fixed hidden inputs, so it uses the same procedural model generator as the configurator. On the homepage only, the preview:
 
@@ -49,6 +51,15 @@ The homepage preview loads `app.js` with fixed hidden inputs, so it uses the sam
 - Removes the white panel/card behind the model.
 
 The configurator keeps the full viewport behavior with orbit controls, camera buttons, grid, ground plane, and translucent hand preview. The left controls and right spec panel scroll independently on desktop so expanding measurement groups does not stretch the rendered model. The viewport status includes: `Preview not exactly to scale.`
+
+## Case Study Page
+
+`case-study.html` explains the project from problem framing through iteration and engineering fixes. It includes sections for:
+
+- The problem with traditional custom orthotics.
+- CAD and parametric-model iteration across the SolidWorks design versions.
+- Images of the early one-sided perforated design, oversized-thumb version, two-part Velcro version, final reference model, SolidWorks parameters, and physical fit tests.
+- Failure and learning around strapless fit, thumb clearance, brittle geometry, ventilation, strap behavior, and controlled hex holes.
 
 ## User Workflow
 

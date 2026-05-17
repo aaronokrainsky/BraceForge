@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Case Study | BraceForge</title>
+    <link rel="icon" href="assets/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="styles.css?v=braceforge-case-study-20260517">
+  </head>
+  <body class="info-page case-study-page">
+    <header class="site-header">
+      <nav class="site-header-inner" aria-label="Primary">
+        <a class="brand-link" href="index.html">
+          <img class="brand-logo" src="assets/braceforge-logo.png" alt="" aria-hidden="true">
+          <span>BraceForge</span>
+        </a>
+        <div class="nav-links">
+          <a class="nav-config-link" href="index.html">Home</a>
+          <a class="nav-config-link" href="printing.html">Printing Guide</a>
+          <a class="nav-config-link" href="configurator.html">Open configurator</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="info-shell">
+      <div class="case-study-content">
+        <section class="case-hero" aria-labelledby="case-title">
+          <div>
+            <p class="eyebrow">Case Study</p>
+            <h1 id="case-title">Building a faster path from hand measurements to a printable brace.</h1>
+            <p>
+              BraceForge started as a way to make custom wrist brace design more repeatable, easier to revise, and practical to manufacture with desktop 3D printing.
+            </p>
+          </div>
+          <aside class="case-summary" aria-label="Case study summary">
+            <dl>
+              <div>
+                <dt>Focus</dt>
+                <dd>Parametric brace generation</dd>
+              </div>
+              <div>
+                <dt>Output</dt>
+                <dd>STL / 3MF export</dd>
+              </div>
+              <div>
+                <dt>Process</dt>
+                <dd>CAD, automation, slicing, testing</dd>
+              </div>
+            </dl>
+          </aside>
+        </section>
+
+        <section class="case-section case-text-section" aria-labelledby="problem-title">
+          <div class="case-copy">
+            <span>01</span>
+            <h2 id="problem-title">The Problem</h2>
+            <p>
+              Traditional custom orthotics can be slow and expensive to produce because every change often requires manual modeling, repeated CAD edits, and a separate review before manufacturing. A small fit issue around the wrist, palm, thumb opening, or strap placement can turn into another full iteration.
+            </p>
+            <p>
+              My original goal was to make something simpler: a print-and-use brace that could hold the hand through the strength of the plastic alone. I wanted to avoid straps, assembly, and extra hardware. That first idea exposed the real problem. A brace can look clean in CAD and still be difficult to put on, uncomfortable to wear, hard to ventilate, and nearly impossible to reuse across different hand sizes without rebuilding the model.
+            </p>
+            <p>
+              BraceForge grew out of that gap between a static CAD model and a useful custom device. The project became less about making one brace and more about building a repeatable system: enter measurements, preview the geometry visually, adjust the fit, and export a printable model.
+            </p>
+          </div>
+        </section>
+
+        <section class="case-section case-story-section" aria-labelledby="iteration-title">
+          <div class="case-copy">
+            <span>02</span>
+            <h2 id="iteration-title">Iteration Process</h2>
+            <p>
+              The design went through seven SolidWorks versions before becoming the model used for the website. Each version answered one fit or manufacturability problem and created the next one to solve.
+            </p>
+            <p>
+              Before BraceForge, adjustments happened inside SolidWorks parameters. That worked for experimentation, but it was difficult to understand visually and not practical for someone who just wanted to change a brace size and see the result.
+            </p>
+          </div>
+          <div class="case-timeline" aria-label="SolidWorks design progression">
+            <figure class="case-figure">
+              <img src="assets/case-study/web/thumb-hole-test.jpg" alt="First SolidWorks brace CAD version with ventilation holes and a one-sided opening">
+              <figcaption>
+                <strong>Version 1:</strong> a one-sided, strapless design with holes. It was meant to rely on plastic spring force, but it was difficult to put on, uncomfortable, not parametric, and the thumb opening was shaped more for aesthetics than human fit.
+              </figcaption>
+            </figure>
+            <figure class="case-figure">
+              <img src="assets/case-study/web/version-7-modern-reference.jpg" alt="Second SolidWorks brace CAD version without ventilation holes">
+              <figcaption>
+                <strong>Version 2:</strong> the holes were removed, but the thumb opening became too large. That made the upper section brittle, kept the difficult one-piece fit problem, and made the inside hot because there was no ventilation.
+              </figcaption>
+            </figure>
+            <figure class="case-figure">
+              <img src="assets/case-study/web/test-fit-placeholder-2.jpg" alt="Split two-part SolidWorks brace with a long Velcro cutout">
+              <figcaption>
+                <strong>Version 3:</strong> the brace split into two parts and added Velcro cutouts. The first long cutout created printing issues, so the slot design was later split into shorter sections like the current version.
+              </figcaption>
+            </figure>
+            <figure class="case-figure">
+              <img src="assets/case-study/web/solidworks-parameters.jpg" alt="Modern SolidWorks brace reference used for the BraceForge website model">
+              <figcaption>
+                <strong>Version 7:</strong> the modern reference design. It combined the two-part layout, parameter-driven sizing, refined thumb clearance, shorter Velcro slots, and the proportions used as the basis for the website generator.
+              </figcaption>
+            </figure>
+            <figure class="case-figure case-figure-wide">
+              <img src="assets/case-study/web/version-3-split-velcro.jpg" alt="SolidWorks parameter table used to modify brace dimensions before the website">
+              <figcaption>
+                <strong>SolidWorks parameters:</strong> this was how the brace was modified before the website. It made the model configurable, but the workflow was dense, less visual, and harder to use than a direct browser preview.
+              </figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section class="case-section" aria-labelledby="learning-title">
+          <div class="case-copy">
+            <span>03</span>
+            <h2 id="learning-title">Failure And Learning</h2>
+            <p>
+              The biggest lessons came from fit testing. The early strapless idea was too hard to wear comfortably. The oversized thumb opening solved one clearance problem but weakened the top of the brace. Removing holes improved strength but made the inside feel warmer, so ventilation had to come back in a more controlled way.
+            </p>
+            <p>
+              The current website version reflects those tradeoffs. The thumb opening is measurement-driven, the brace is split into two printable halves, Velcro slots are divided into shorter cutouts, and breathability uses controlled hex holes so the pattern can avoid rims, split edges, thumb cutouts, and strap areas.
+            </p>
+          </div>
+          <div class="case-media-grid" aria-label="Fit testing and thumb opening images">
+            <figure class="case-figure">
+              <img src="assets/case-study/web/test-fit-placeholder-1.jpg" alt="Early perforated brace prototype fit test on a hand">
+              <figcaption>The early perforated prototype showed why the strapless plastic-spring concept was difficult to fit and uncomfortable in practice.</figcaption>
+            </figure>
+            <figure class="case-figure">
+              <img src="assets/case-study/web/version-1-perforated-single-side.jpg" alt="Thumb hole shape test on a physical brace prototype">
+              <figcaption>Thumb clearance tests helped move the opening away from an aesthetic CAD shape and toward a more wearable human fit.</figcaption>
+            </figure>
+            <figure class="case-figure">
+              <img src="assets/case-study/web/version-2-oversized-thumb.jpg" alt="Modern brace prototype fit test with Velcro straps">
+              <figcaption>Later fit tests validated the two-part structure and Velcro approach, while also showing why comfort and ventilation still mattered.</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section class="case-section case-conclusion" aria-labelledby="outcome-title">
+          <div class="case-copy">
+            <span>04</span>
+            <h2 id="outcome-title">Outcome</h2>
+            <p>
+              BraceForge turns the brace into an adjustable system: measure, preview, refine, estimate material, and export. The project is still a design and fabrication tool rather than medical guidance, but it shows how parametric modeling can shorten the path from an orthotic idea to a printable prototype.
+            </p>
+          </div>
+          <a class="primary-link" href="configurator.html">Open Configurator</a>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-disclaimer">
+      BraceForge is not medical advice and is not intended to provide real medical support, diagnosis, treatment, or professional care. Created by Aaron Okrainsky, 2026.
+    </footer>
+  </body>
+</html>
