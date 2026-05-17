@@ -29,6 +29,15 @@ http://localhost:8000/configurator.html
 http://localhost:8000/printing.html
 ```
 
+Vercel clean URLs:
+
+```text
+https://braceforge.aaronokrainsky.com/
+https://braceforge.aaronokrainsky.com/case-study
+https://braceforge.aaronokrainsky.com/configurator
+https://braceforge.aaronokrainsky.com/printing
+```
+
 The current server was restarted successfully on May 16, 2026.
 
 ## Naming
@@ -102,6 +111,8 @@ Important landing page fixes:
 
 The case study page is at `case-study.html`.
 
+On Vercel, `vercel.json` uses `cleanUrls: true`, so the public route is `/case-study`.
+
 Current design:
 
 - Uses the shared BraceForge public-page header, footer, logo, colors, and responsive nav.
@@ -112,7 +123,7 @@ Current design:
 - Uses optimized local web images in `assets/case-study/web/` for the early perforated one-sided design, oversized-thumb design, split Velcro design, final reference design, SolidWorks parameter table, thumb-hole testing, and physical fit-test images.
 - The problem section intentionally has no image slots; the visual story starts in the iteration section.
 - The landing page includes a short case-study callout linking to this page.
-- Public top navigation links to the case study from the landing page, printing page, and configurator.
+- Public top navigation links to the clean `/case-study` route from the landing page, printing page, and configurator.
 
 ## Printing Guide Page
 

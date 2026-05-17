@@ -22,20 +22,25 @@ http://localhost:8000/
 
 Useful pages:
 
-- `http://localhost:8000/`: landing page
-- `http://localhost:8000/case-study.html`: project case study
-- `http://localhost:8000/configurator.html`: brace configurator
-- `http://localhost:8000/printing.html`: printing and slicer guidance
+- `/`: landing page
+- `/case-study`: project case study
+- `/configurator`: brace configurator
+- `/printing`: printing and slicer guidance
+
+Live case study URL:
+
+- `https://braceforge.aaronokrainsky.com/case-study`
 
 ## Main Files
 
 - `index.html`: landing page with BraceForge branding, top navigation, workflow cards, fixed hidden preview inputs, and an orbitable preview using the configurator model.
-- `case-study.html`: project case study page covering the problem, iteration process, planned prototype/CAD image slots, failure points, and learned fixes.
+- `case-study.html`: project case study page served as `/case-study` on Vercel, covering the problem, iteration process, prototype/CAD images, failure points, and learned fixes.
 - `configurator.html`: measurement controls, hand-side selector, breathability slider, viewport, generated specs, filament type/cost estimator, not-to-scale preview note, and export buttons.
 - `printing.html`: slicer setup, orientation, suggested settings, and post-print checks.
 - `styles.css`: shared visual system, responsive layout, logo sizing, green primary color, gold secondary color, landing preview styling, and configurator layout.
 - `app.js`: Three.js scene, brace geometry generation, ghost-hand preview, thumb opening, Velcro cutouts, homepage preview mode, print/material estimate, and STL/3MF export.
 - `assets/braceforge-logo.png`: cropped high-resolution BraceForge logo.
+- `assets/case-study/web/`: optimized case study images used by the public page.
 - `PROJECT_NOTES.md`: detailed implementation notes and decisions from model iteration.
 
 ## Current UI

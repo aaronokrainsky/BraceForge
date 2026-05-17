@@ -481,6 +481,13 @@ input[type="range"] {
   text-align: center;
 }
 
+.site-disclaimer a {
+  color: var(--accent);
+  font-weight: 800;
+  text-decoration-color: rgba(180, 135, 62, 0.7);
+  text-underline-offset: 2px;
+}
+
 #braceViewport canvas {
   display: block;
   width: 100%;
