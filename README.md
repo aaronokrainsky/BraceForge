@@ -131,3 +131,9 @@ After export, open the model in Orca, Bambu Studio, PrusaSlicer, or another slic
 - The browser preview is not a replacement for slicer inspection.
 - The generated model should be fit-tested before real use.
 - There is no automated visual regression testing yet.
+
+## License
+
+Copyright (c) 2026 Aaron Okrainsky. All rights reserved.
+
+This project may be viewed and used for personal, educational, or evaluation purposes only. Commercial use, redistribution, resale, or derivative commercial work is not permitted without prior written permission. See `LICENSE` for details.
